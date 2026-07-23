@@ -17,6 +17,26 @@
 - Projection verdict and proof-of-life decisions.
 - Browser message origin/source validation.
 
+## Red-team hardening regressions
+
+- Browser result callbacks expose only a non-empty server verdict token and
+  session identifier; the client-decided verdict and reason never cross the
+  merchant boundary.
+- A missing, malformed, or unavailable verdict token prevents the result
+  callback instead of silently reporting completion.
+- Challenge document response policies allow Challenge-origin and required blob
+  workers, while continuing to reject data and cross-origin worker sources.
+- WebSocket identity rejects a declared origin that contradicts the handshake
+  origin, and sealed connection envelopes expire with the five-minute session.
+- Session creation fails closed when the rate-limit store is unavailable.
+- SSO return-code and approval-token hashes use one constant-time comparison
+  primitive and reject malformed digest lengths.
+- Pair and all three SSO legs fail closed unless their current, verified API
+  projections carry the device id derived from the exact public key that signs
+  the corresponding Challenge attestation.
+- External attack-harness and live-target checks are intentionally delegated;
+  they are not part of the local implementation run.
+
 ## Integration tests
 
 - Start -> desktop attest -> phone attest -> verdict -> verify.

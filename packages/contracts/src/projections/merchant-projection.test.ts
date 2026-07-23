@@ -4,7 +4,23 @@ import { MerchantProjectionSchema } from './merchant-projection.js';
 
 describe('merchant projection contract', () => {
   it('accepts the API-owned current shape', () => {
-    expect(MerchantProjectionSchema.parse(merchantProjection()).session_id).toBe('session-fixture');
+    const projection = merchantProjection();
+    const parsed = MerchantProjectionSchema.parse({
+      ...projection,
+      identification: {
+        ...projection.identification,
+        crypto_device_id: '02a05e53a4',
+        crypto_verified: true,
+      },
+    });
+
+    expect(parsed).toMatchObject({
+      session_id: 'session-fixture',
+      identification: {
+        crypto_device_id: '02a05e53a4',
+        crypto_verified: true,
+      },
+    });
   });
 
   it.each([
@@ -15,6 +31,21 @@ describe('merchant projection contract', () => {
   ])('rejects %s', (_label, override) => {
     expect(
       MerchantProjectionSchema.safeParse({ ...merchantProjection(), ...override }).success
+    ).toBe(false);
+  });
+
+  it('rejects a malformed cryptographic device id', () => {
+    const projection = merchantProjection();
+
+    expect(
+      MerchantProjectionSchema.safeParse({
+        ...projection,
+        identification: {
+          ...projection.identification,
+          crypto_device_id: 'not-a-device-id',
+          crypto_verified: true,
+        },
+      }).success
     ).toBe(false);
   });
 });

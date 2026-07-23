@@ -12,11 +12,24 @@ const NOW = 1_900_000_000;
 const desktopProjection = merchantProjection({
   session_id: 'argus-desktop-1',
   created_at: NOW * 1000,
+  identification: {
+    crypto_device_id: '02a05e53a4',
+    crypto_verified: true,
+    browserDetails: {
+      browserName: 'Chrome',
+      browserVersion: '150',
+      device: 'desktop',
+      os: 'Windows',
+      userAgent: 'Mozilla/5.0',
+    },
+  },
 });
 const phoneProjection = merchantProjection({
   session_id: 'argus-phone-1',
   created_at: NOW * 1000,
   identification: {
+    crypto_device_id: 'ce382673da',
+    crypto_verified: true,
     browserDetails: {
       browserName: 'Chrome',
       browserVersion: '150',
@@ -144,6 +157,10 @@ describe('phone attestation route', () => {
         sessionId: SESSION_ID,
         verdict: 'paired',
         reason: 'paired_desktop_and_phone',
+        annotations: expect.objectContaining({
+          desktop_projection_device_bound: true,
+          phone_projection_device_bound: true,
+        }),
       })
     );
     expect(deps.deliverVerdict).toHaveBeenCalledWith(
@@ -189,6 +206,27 @@ describe('phone attestation route', () => {
     expect(deps.mintDeviceTrust).not.toHaveBeenCalled();
     expect(deps.commit).toHaveBeenCalledWith(
       expect.objectContaining({ verdict: 'failed', reason: 'phone_on_proxy' })
+    );
+  });
+
+  it('fails when the phone projection belongs to a different attestation key', async () => {
+    const mismatched = merchantProjection({
+      ...phoneProjection,
+      identification: {
+        ...phoneProjection.identification,
+        crypto_device_id: '8193b45484',
+      },
+    });
+    const deps = dependencies({ fetchPhoneProjection: vi.fn().mockResolvedValue(mismatched) });
+
+    await createPhoneAttestationHandler(deps)({}, SESSION_ID, REQUESTER_IP);
+
+    expect(deps.mintDeviceTrust).not.toHaveBeenCalled();
+    expect(deps.commit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        verdict: 'failed',
+        reason: 'phone_projection_device_mismatch',
+      })
     );
   });
 

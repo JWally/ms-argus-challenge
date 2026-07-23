@@ -1,8 +1,6 @@
 export interface CaptchaResult {
   sessionId: string;
-  verdict: string;
-  reason: string | null;
-  token: string | null;
+  token: string;
 }
 
 export interface CaptchaMessageEnvelope {
@@ -21,21 +19,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isOptionalString(value: unknown): value is string | null | undefined {
-  return value === null || value === undefined || typeof value === 'string';
-}
-
 function parseResult(payload: Record<string, unknown>): CaptchaResult | null {
   if (payload.event !== 'result') return null;
   if (typeof payload.sessionId !== 'string' || payload.sessionId.length === 0) return null;
-  if (typeof payload.verdict !== 'string' || payload.verdict.length === 0) return null;
-  if (!isOptionalString(payload.reason) || !isOptionalString(payload.token)) return null;
+  if (typeof payload.token !== 'string' || payload.token.length === 0) return null;
 
   return {
     sessionId: payload.sessionId,
-    verdict: payload.verdict,
-    reason: payload.reason ?? null,
-    token: payload.token ?? null,
+    token: payload.token,
   };
 }
 

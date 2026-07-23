@@ -3,6 +3,10 @@ import { z } from 'zod';
 const nullableString = z.string().nullable();
 const score = z.number().finite().min(0).max(100);
 const resultFlag = z.object({ result: z.boolean() });
+const cryptoDeviceId = z
+  .string()
+  .regex(/^[0-9a-f]{10}$/)
+  .nullable();
 
 export const MerchantProjectionSchema = z.object({
   schema_version: z.literal(1),
@@ -13,6 +17,8 @@ export const MerchantProjectionSchema = z.object({
   created_at: z.number().int().positive(),
   verdict: z.enum(['clean', 'suspect', 'block']),
   identification: z.object({
+    crypto_device_id: cryptoDeviceId,
+    crypto_verified: z.boolean().nullable(),
     browserDetails: z.object({
       browserName: nullableString,
       browserVersion: nullableString,

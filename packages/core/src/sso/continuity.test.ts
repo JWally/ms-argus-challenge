@@ -13,6 +13,7 @@ const profile: SsoLegProfile = {
   isProxy: false,
   isDatacenter: false,
   isVpn: false,
+  projectionDeviceBound: true,
 };
 
 function legs(overrides: Partial<SsoLegProfile> = {}) {
@@ -28,12 +29,19 @@ describe('SSO continuity', () => {
     expect(evaluateSsoContinuity(legs())).toEqual({
       ok: true,
       reason: 'approved',
-      reasons: ['phone_classified', 'device_key_match', 'network_continuity', 'risk_stable'],
+      reasons: [
+        'phone_classified',
+        'projection_device_bound',
+        'device_key_match',
+        'network_continuity',
+        'risk_stable',
+      ],
     });
   });
 
   it.each([
     [{ isPhone: false }, 'not_phone'],
+    [{ projectionDeviceBound: false }, 'device_changed'],
     [{ keyId: 'different-key' }, 'device_changed'],
     [{ isVpn: true }, 'network_changed'],
     [{ asnName: 'Other Carrier', ip: '198.51.100.2' }, 'network_changed'],

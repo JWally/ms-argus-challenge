@@ -121,8 +121,6 @@ async function runEmbedSession(
     postToHost(config.hostOrigin, {
       event: 'result',
       sessionId: session.sessionId,
-      verdict: verdict.verdict,
-      reason: verdict.reason,
       token,
     });
   } catch (cause) {

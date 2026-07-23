@@ -6,6 +6,7 @@ import { QrKeyholder } from '../qr/qr-keyholder.js';
 import { pollDesktopResult } from './result-poll.js';
 import type { DesktopController, DesktopFlowEvents, SessionStart } from './desktop-types.js';
 import { createVerdictGate, type VerdictGate } from './verdict-gate.js';
+import { requireVerdictToken } from './verdict-token.js';
 
 interface DesktopReady {
   kind: 'desktop-ready';
@@ -152,10 +153,10 @@ export async function startDesktopFlow(input: {
       qr,
       result: gate.result.finally(() => globalThis.clearTimeout(expiryTimer)),
       async verdictToken() {
-        const response: { token?: string } = await requestJson<{ token?: string }>(
+        const response = await requestJson<unknown>(
           `/api/session/${session.sessionId}/verdict-token?t=${encodeURIComponent(session.ws.desktopToken)}`
-        ).catch(() => ({}));
-        return response.token ?? null;
+        );
+        return requireVerdictToken(response);
       },
       stop() {
         abort.abort();

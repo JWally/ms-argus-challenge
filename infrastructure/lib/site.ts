@@ -27,6 +27,10 @@ import { fileURLToPath } from 'node:url';
 
 const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 
+// Web Integrity fetches its signed worker bundle and executes the verified bytes
+// from a blob URL so the worker inherits the merchant page's origin and cookies.
+const WORKER_CONTENT_SECURITY_POLICY = "worker-src 'self' blob:";
+
 function responseHeaders(scope: Construct) {
   const shared = {
     strictTransportSecurity: {
@@ -38,6 +42,10 @@ function responseHeaders(scope: Construct) {
     contentTypeOptions: { override: true },
     referrerPolicy: {
       referrerPolicy: HeadersReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN,
+      override: true,
+    },
+    contentSecurityPolicy: {
+      contentSecurityPolicy: WORKER_CONTENT_SECURITY_POLICY,
       override: true,
     },
   };

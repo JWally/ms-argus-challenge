@@ -14,6 +14,8 @@ const attestation: AttestationInput = {
 const phoneProjection = merchantProjection({
   created_at: NOW * 1000,
   identification: {
+    crypto_device_id: '43a46f1d08',
+    crypto_verified: true,
     browserDetails: {
       browserName: 'Mobile Safari',
       browserVersion: '26',
@@ -157,7 +159,20 @@ describe('SSO application flow', () => {
 
   it('rejects a non-phone start without creating state', async () => {
     const repository = harness();
-    const desktop = merchantProjection({ created_at: NOW * 1000 });
+    const desktop = merchantProjection({
+      created_at: NOW * 1000,
+      identification: {
+        crypto_device_id: '43a46f1d08',
+        crypto_verified: true,
+        browserDetails: {
+          browserName: 'Chrome',
+          browserVersion: '150',
+          device: 'desktop',
+          os: 'Windows',
+          userAgent: 'Mozilla/5.0',
+        },
+      },
+    });
     await expect(
       startSsoSession(
         {
@@ -182,6 +197,44 @@ describe('SSO application flow', () => {
       ok: false,
       status: 403,
       body: { error: 'sso_requires_phone', leg: 'start' },
+    });
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a phone scan produced by a different key', async () => {
+    const repository = harness();
+    const mismatched = merchantProjection({
+      ...phoneProjection,
+      identification: {
+        ...phoneProjection.identification,
+        crypto_device_id: '8193b45484',
+      },
+    });
+
+    await expect(
+      startSsoSession(
+        {
+          cpi: 'argus_cpi_test_Example12345',
+          argusSessionId: 'phone-scan',
+          attestation,
+        },
+        {
+          callbackOrigins: [],
+          validateAttestation: vi.fn(() => ({ ok: true as const, attestation })),
+          fetchProjection: vi.fn().mockResolvedValue(mismatched),
+          createSession: repository.create,
+          newSessionId: () => SESSION_ID,
+          newNonce: () => 'sso-nonce-123456789',
+          newMerchantSessionId: () => 'merchant-session',
+          nowEpochSeconds: () => NOW,
+          sessionTtlSeconds: 300,
+          proofRequiredByDefault: false,
+        }
+      )
+    ).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+      body: { error: 'sso_projection_device_unbound', leg: 'start' },
     });
     expect(repository.create).not.toHaveBeenCalled();
   });

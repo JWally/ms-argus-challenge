@@ -12,6 +12,8 @@ export function merchantProjection(
     network_tampering: 0,
     verdict: 'clean',
     identification: {
+      crypto_device_id: null,
+      crypto_verified: null,
       browserDetails: {
         browserName: 'Chrome',
         browserVersion: '150',

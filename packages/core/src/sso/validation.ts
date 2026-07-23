@@ -3,7 +3,7 @@ import type { AttestationInput } from '../attestations/attestation-bindings.js';
 import { evaluateSsoContinuity, type SsoContinuityVerdict } from './continuity.js';
 import { ssoFailureReturn } from './merchant-binding.js';
 import { profileFromProjection, requirePhoneProfile } from './profile.js';
-import { hashApprovalToken, hashSsoReturnCode } from './token-hash.js';
+import { hashApprovalToken, hashSsoReturnCode, tokenHashesEqual } from './token-hash.js';
 import type { SsoAttestationResult, SsoSession, StoredSsoValidation } from './types.js';
 
 export type SsoValidationProofResult =
@@ -69,7 +69,7 @@ function readReturnCode(
     return { ok: false, status: 409, body: { error: 'sso_return_code_consumed' } };
   }
   const value = typeof body.returnCode === 'string' ? body.returnCode : '';
-  if (!value || hashSsoReturnCode(value) !== session.returnCodeHash) {
+  if (!value || !tokenHashesEqual(session.returnCodeHash, hashSsoReturnCode(value))) {
     return { ok: false, status: 401, body: { error: 'sso_return_code_invalid' } };
   }
   if (now > session.returnCodeExpiresAt) {

@@ -76,11 +76,23 @@ describe('WebSocket application router', () => {
     const { route, dependencies } = harness();
     const connect = event(null);
     connect.requestContext.routeKey = '$connect';
+    connect.headers = { origin: ORIGIN };
     const disconnect = event(null, 'released-connection');
     disconnect.requestContext.routeKey = '$disconnect';
     await expect(route(connect)).resolves.toEqual({ statusCode: 200 });
     await expect(route(disconnect)).resolves.toEqual({ statusCode: 200 });
     expect(dependencies.releaseRoleConnection).toHaveBeenCalledWith('released-connection');
+  });
+
+  it('rejects a disallowed handshake origin before identity', async () => {
+    const { route } = harness();
+    const connect = event(null);
+    connect.requestContext.routeKey = '$connect';
+    connect.headers = { origin: 'https://attacker.example' };
+    await expect(route(connect)).resolves.toEqual({
+      statusCode: 403,
+      body: 'origin_not_allowed',
+    });
   });
 
   it('server-stamps authenticated identity during whoami', async () => {
@@ -108,6 +120,20 @@ describe('WebSocket application router', () => {
     expect(sent[0]).toMatchObject({
       connectionId: 'desktop-connection',
       data: { action: 'whoami', role: 'desktop', sessionId: SESSION_ID },
+    });
+  });
+
+  it('rejects a declared origin that contradicts the handshake origin', async () => {
+    const { route } = harness();
+    const identity = event({
+      action: 'whoami',
+      token: 'desktop-token',
+      origin: ORIGIN,
+    });
+    identity.headers = { origin: 'https://different.example' };
+    await expect(route(identity)).resolves.toEqual({
+      statusCode: 400,
+      body: 'origin_mismatch',
     });
   });
 
@@ -153,7 +179,7 @@ describe('WebSocket application router', () => {
     ],
     [envelope('desktop'), envelope('phone', { sessionId: 'other' }), 'cross_session'],
     [envelope('desktop'), envelope('desktop', { connectionId: 'other' }), 'same_role'],
-    [envelope('desktop', { iat: NOW - 3_601 }), envelope('phone'), 'envelope_expired'],
+    [envelope('desktop', { iat: NOW - 301 }), envelope('phone'), 'envelope_expired'],
   ])('rejects invalid relay policy %#', async (sender, peer, error) => {
     const { route, opened } = harness();
     opened.set('sender', sender);

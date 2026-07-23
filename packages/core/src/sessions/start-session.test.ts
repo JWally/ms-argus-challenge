@@ -94,17 +94,21 @@ describe('start session', () => {
     });
   });
 
-  it('retains Pair fail-open behavior when the rate-limit store is unavailable', async () => {
+  it('fails closed when the rate-limit store is unavailable', async () => {
     const logger = { warn: vi.fn(), info: vi.fn() };
     const deps = dependencies({
       rateLimiter: { allow: vi.fn().mockRejectedValue(new Error('rate-limit store unavailable')) },
       logger,
     });
-    await expect(
-      startSession({ challengeId: CHALLENGE_ID }, '203.0.113.8', deps)
-    ).resolves.toMatchObject({ status: 200 });
-    expect(logger.warn).toHaveBeenCalledWith(
-      '[challenge] session-start rate-limit check failed open: rate-limit store unavailable'
+    await expect(startSession({ challengeId: CHALLENGE_ID }, '203.0.113.8', deps)).resolves.toEqual(
+      {
+        status: 503,
+        body: { error: 'rate_limit_unavailable' },
+      }
     );
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[challenge] session-start rate-limit check failed closed: rate-limit store unavailable'
+    );
+    expect(deps.sessions.create).not.toHaveBeenCalled();
   });
 });

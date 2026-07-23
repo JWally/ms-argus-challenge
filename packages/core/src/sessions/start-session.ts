@@ -59,16 +59,18 @@ function validMerchantOrigin(origin: string): boolean {
   }
 }
 
-async function isAllowed(
+async function rateLimitDecision(
   viewerIp: string,
   dependencies: StartSessionDependencies
-): Promise<boolean> {
+): Promise<'allowed' | 'limited' | 'unavailable'> {
   try {
-    return await dependencies.rateLimiter.allow(viewerIp);
+    return (await dependencies.rateLimiter.allow(viewerIp)) ? 'allowed' : 'limited';
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    dependencies.logger.warn(`[challenge] session-start rate-limit check failed open: ${message}`);
-    return true;
+    dependencies.logger.warn(
+      `[challenge] session-start rate-limit check failed closed: ${message}`
+    );
+    return 'unavailable';
   }
 }
 
@@ -154,7 +156,11 @@ export async function startSession(
   viewerIp: string,
   dependencies: StartSessionDependencies
 ): Promise<StartResponse> {
-  if (!(await isAllowed(viewerIp, dependencies))) {
+  const rateLimit = await rateLimitDecision(viewerIp, dependencies);
+  if (rateLimit === 'unavailable') {
+    return { status: 503, body: { error: 'rate_limit_unavailable' } };
+  }
+  if (rateLimit === 'limited') {
     return { status: 429, body: { error: 'rate_limited', scope: 'session_start' } };
   }
   const parsed = parseSession(body, dependencies);

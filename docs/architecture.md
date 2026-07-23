@@ -59,9 +59,19 @@ pages.
 
 ## Trust boundaries
 
-- Browser messages are notifications, never merchant proof.
+- Browser result messages contain only the session identifier and server-signed
+  token. Client-decided verdict and reason fields do not cross into the
+  merchant page.
+- Browser messages are delivery notifications, never merchant proof.
 - Merchant servers verify verdict tokens through `/api/verify`.
-- Session, CPI, challenge, role, and nonce bindings are server-owned.
+- Session identifiers, challenge identifiers, participant roles, and nonces are
+  stored and enforced by the server. Verdict tokens bind the exact scoped CPI
+  requested at session start; a merchant-owned minimum-scope policy remains
+  required before the server can independently reject assurance downgrades.
+- Every Pair and SSO scan must expose a verified Argus cryptographic identity
+  whose API projection device id matches the exact public-key string that
+  signed that Challenge attestation. A clean projection from a different
+  device therefore fails before a paired verdict or SSO approval is minted.
 - Pair-token redemption and SSO approval exchange are single-use.
 - Missing projection, binding, proof, or signing material fails closed.
 - Polling can recover delivery but cannot bypass WebSocket authentication.

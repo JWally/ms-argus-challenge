@@ -10,6 +10,7 @@ export interface SsoLegProfile {
   isProxy: boolean;
   isDatacenter: boolean;
   isVpn: boolean;
+  projectionDeviceBound: boolean;
 }
 
 export interface SsoContinuityInput {
@@ -70,6 +71,10 @@ export function evaluateSsoContinuity(input: SsoContinuityInput): SsoContinuityV
     return { ok: false, reason: 'not_phone', reasons: ['phone_required'] };
   }
   reasons.push('phone_classified');
+  if (!legs.every((leg) => leg.projectionDeviceBound)) {
+    return { ok: false, reason: 'device_changed', reasons: ['projection_device_unbound'] };
+  }
+  reasons.push('projection_device_bound');
   if (!sameDevice(legs)) {
     return { ok: false, reason: 'device_changed', reasons: ['device_key_mismatch'] };
   }

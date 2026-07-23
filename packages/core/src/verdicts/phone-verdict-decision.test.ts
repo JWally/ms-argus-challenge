@@ -4,12 +4,16 @@ import { classifyProjection } from './projection-policy.js';
 import { decidePhoneVerdict } from './phone-verdict-decision.js';
 
 const NOW = Date.UTC(2030, 0, 1);
+const DESKTOP_PUBLIC_KEY = 'desktop-public-key';
+const PHONE_PUBLIC_KEY = 'phone-public-key';
 
 function phoneProjection() {
   return merchantProjection({
     session_id: 'phone-session',
     created_at: NOW,
     identification: {
+      crypto_device_id: 'ce382673da',
+      crypto_verified: true,
       browserDetails: {
         browserName: 'Chrome',
         browserVersion: '150',
@@ -25,6 +29,17 @@ function input(overrides: Record<string, unknown> = {}) {
   const desktopProjection = merchantProjection({
     session_id: 'desktop-session',
     created_at: NOW,
+    identification: {
+      crypto_device_id: '02a05e53a4',
+      crypto_verified: true,
+      browserDetails: {
+        browserName: 'Chrome',
+        browserVersion: '150',
+        device: 'desktop',
+        os: 'Windows',
+        userAgent: 'Mozilla/5.0',
+      },
+    },
   });
   const phone = phoneProjection();
   return {
@@ -34,6 +49,8 @@ function input(overrides: Record<string, unknown> = {}) {
     phoneProjection: phone,
     desktopScan: classifyProjection(desktopProjection),
     phoneScan: classifyProjection(phone),
+    desktopPublicKey: DESKTOP_PUBLIC_KEY,
+    phonePublicKey: PHONE_PUBLIC_KEY,
     hostAnnotations: { host_preflight_bound: true },
     ...overrides,
   };
@@ -70,7 +87,10 @@ describe('phone verdict decision', () => {
     expect(decidePhoneVerdict(input({ phoneScan: null }), NOW).reason).toBe(
       'projection_lookup_failed'
     );
-    const staleDesktop = merchantProjection({ created_at: NOW - 300_000 });
+    const staleDesktop = merchantProjection({
+      ...input().desktopProjection,
+      created_at: NOW - 300_000,
+    });
     expect(
       decidePhoneVerdict(
         input({
@@ -83,6 +103,19 @@ describe('phone verdict decision', () => {
       verdict: 'failed',
       reason: 'projection_stale',
       annotations: { desktop_projection_age_sec: 300, freshness_window_sec: 180 },
+    });
+  });
+
+  it('fails when a projection identity does not match the attestation key', () => {
+    expect(
+      decidePhoneVerdict(input({ phonePublicKey: 'different-public-key' }), NOW)
+    ).toMatchObject({
+      verdict: 'failed',
+      reason: 'phone_projection_device_mismatch',
+      annotations: {
+        desktop_projection_device_bound: true,
+        phone_projection_device_bound: false,
+      },
     });
   });
 
@@ -104,7 +137,11 @@ describe('phone verdict decision', () => {
   });
 
   it('preserves projection failures and host evidence', () => {
-    const desktop = merchantProjection({ created_at: NOW, tags: ['proxy'] });
+    const desktop = merchantProjection({
+      ...input().desktopProjection,
+      created_at: NOW,
+      tags: ['proxy'],
+    });
     expect(
       decidePhoneVerdict(
         input({ desktopProjection: desktop, desktopScan: classifyProjection(desktop) }),

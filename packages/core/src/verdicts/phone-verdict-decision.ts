@@ -1,4 +1,5 @@
 import type { MerchantProjection } from '@argus-challenge/contracts';
+import { evaluatePairProjectionBindings } from '../attestations/projection-device-binding.js';
 import {
   computeProjectionVerdict,
   isProjectionFresh,
@@ -18,6 +19,8 @@ export interface PhoneVerdictDecisionInput {
   phoneProjection: MerchantProjection | null;
   desktopScan: ClassifiedProjection | null;
   phoneScan: ClassifiedProjection | null;
+  desktopPublicKey: string;
+  phonePublicKey: string;
   hostAnnotations: Record<string, unknown>;
 }
 
@@ -28,59 +31,111 @@ export interface PhoneVerdictDecision {
   proofOfLife: boolean;
 }
 
+type DecisionOutcome = Omit<PhoneVerdictDecision, 'proofOfLife'>;
+
+function decideFromCompleteProjections(
+  input: {
+    desktopProjection: MerchantProjection;
+    phoneProjection: MerchantProjection;
+    desktopScan: ClassifiedProjection;
+    phoneScan: ClassifiedProjection;
+    desktopPublicKey: string;
+    phonePublicKey: string;
+    proofAnnotations: ProofAnnotations;
+  },
+  proofOfLife: boolean,
+  nowMilliseconds: number
+): DecisionOutcome {
+  const binding = evaluatePairProjectionBindings(input);
+  if (!binding.ok) {
+    return {
+      verdict: 'failed',
+      reason: binding.reason,
+      annotations: { ...binding.annotations, ...input.proofAnnotations },
+    };
+  }
+  if (
+    !isProjectionFresh(input.desktopProjection, nowMilliseconds) ||
+    !isProjectionFresh(input.phoneProjection, nowMilliseconds)
+  ) {
+    return {
+      verdict: 'failed',
+      reason: 'projection_stale',
+      annotations: {
+        ...binding.annotations,
+        desktop_projection_age_sec: projectionAgeSeconds(input.desktopProjection, nowMilliseconds),
+        phone_projection_age_sec: projectionAgeSeconds(input.phoneProjection, nowMilliseconds),
+        freshness_window_sec: PROJECTION_FRESHNESS_WINDOW_SECONDS,
+        ...input.proofAnnotations,
+      },
+    };
+  }
+  const computed = computeProjectionVerdict(input.desktopScan, input.phoneScan);
+  return {
+    verdict: computed.verdict,
+    reason: computed.reason,
+    annotations: {
+      ...binding.annotations,
+      ...computed.annotations,
+      ...input.proofAnnotations,
+      proof_of_life: proofOfLife,
+    },
+  };
+}
+
 export function decidePhoneVerdict(
   input: PhoneVerdictDecisionInput,
   nowMilliseconds: number = Date.now()
 ): PhoneVerdictDecision {
   const proofOfLife = input.proofAnnotations.phone_webauthn_attested === true;
-  let verdict: PhoneVerdictDecision['verdict'];
-  let reason: string;
-  let annotations: Record<string, unknown>;
+  let outcome: DecisionOutcome;
 
   if (input.proofRequired && !proofOfLife) {
-    verdict = 'failed';
-    reason = 'no_proof_of_life';
-    annotations = {
-      desktop_projection_present: Boolean(input.desktopProjection),
-      phone_projection_present: Boolean(input.phoneProjection),
-      ...input.proofAnnotations,
-    };
-  } else if (!input.desktopScan || !input.phoneScan) {
-    verdict = 'failed';
-    reason = 'projection_lookup_failed';
-    annotations = {
-      score_lookup_skipped: true,
-      desktop_projection_present: Boolean(input.desktopProjection),
-      phone_projection_present: Boolean(input.phoneProjection),
-      ...input.proofAnnotations,
+    outcome = {
+      verdict: 'failed',
+      reason: 'no_proof_of_life',
+      annotations: {
+        desktop_projection_present: Boolean(input.desktopProjection),
+        phone_projection_present: Boolean(input.phoneProjection),
+        ...input.proofAnnotations,
+      },
     };
   } else if (
-    !isProjectionFresh(input.desktopProjection, nowMilliseconds) ||
-    !isProjectionFresh(input.phoneProjection, nowMilliseconds)
+    !input.desktopProjection ||
+    !input.phoneProjection ||
+    !input.desktopScan ||
+    !input.phoneScan
   ) {
-    verdict = 'failed';
-    reason = 'projection_stale';
-    annotations = {
-      desktop_projection_age_sec: projectionAgeSeconds(input.desktopProjection, nowMilliseconds),
-      phone_projection_age_sec: projectionAgeSeconds(input.phoneProjection, nowMilliseconds),
-      freshness_window_sec: PROJECTION_FRESHNESS_WINDOW_SECONDS,
-      ...input.proofAnnotations,
+    outcome = {
+      verdict: 'failed',
+      reason: 'projection_lookup_failed',
+      annotations: {
+        score_lookup_skipped: true,
+        desktop_projection_present: Boolean(input.desktopProjection),
+        phone_projection_present: Boolean(input.phoneProjection),
+        ...input.proofAnnotations,
+      },
     };
   } else {
-    const computed = computeProjectionVerdict(input.desktopScan, input.phoneScan);
-    verdict = computed.verdict;
-    reason = computed.reason;
-    annotations = {
-      ...computed.annotations,
-      ...input.proofAnnotations,
-      proof_of_life: proofOfLife,
-    };
+    outcome = decideFromCompleteProjections(
+      {
+        desktopProjection: input.desktopProjection,
+        phoneProjection: input.phoneProjection,
+        desktopScan: input.desktopScan,
+        phoneScan: input.phoneScan,
+        desktopPublicKey: input.desktopPublicKey,
+        phonePublicKey: input.phonePublicKey,
+        proofAnnotations: input.proofAnnotations,
+      },
+      proofOfLife,
+      nowMilliseconds
+    );
   }
 
   return {
-    verdict,
-    reason,
+    verdict: outcome.verdict,
+    reason: outcome.reason,
     proofOfLife,
-    annotations: { ...annotations, ...input.hostAnnotations },
+    annotations: { ...outcome.annotations, ...input.hostAnnotations },
   };
 }
