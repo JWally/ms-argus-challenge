@@ -1,13 +1,42 @@
-import { expect, test } from '@playwright/test';
+import { devices, expect, test } from '@playwright/test';
 
 const live = process.env.CHALLENGE_LIVE === '1';
 const cpi = process.env.CHALLENGE_CPI ?? 'argus_cpi_test_UEeqk7Bk7uetxKKDxNmIdB';
 
-test('home presents the explicit two-device challenge', async ({ page }) => {
+test('desktop home presents pairing and keeps mobile SSO out of the way', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /one human/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Run a demo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run pairing demo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use mobile SSO' })).toBeHidden();
   await expect(page.getByText('Device co-attestation')).toBeVisible();
+});
+
+test('phone home offers mobile SSO and opens the merchant demo', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Use mobile SSO' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run pairing demo' })).toBeHidden();
+  await page.getByRole('button', { name: 'Use mobile SSO' }).click();
+  await expect(page).toHaveURL(/\/merchant$/);
+  await expect(page.getByRole('heading', { name: 'Try the SSO demo' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run demo' })).toBeVisible();
+});
+
+test('embed exposes Pair reticle and device handshake semantics', async ({ page }) => {
+  await page.goto(
+    `/embed?${new URLSearchParams({
+      cpi: `${cpi}.fastpass`,
+      challengeId: 'browser_visual_contract_1234',
+    }).toString()}`
+  );
+  const module = page.locator('.aegis');
+  await expect(module).toBeVisible();
+  await expect(module.locator('.ax-scan')).toBeVisible();
+  await expect(module.getByText('THIS DEVICE', { exact: true })).toBeVisible();
+  await expect(module.getByText('YOUR PHONE', { exact: true })).toBeVisible();
+  await expect(module.locator('.ax-track')).toHaveCSS('display', 'block');
+  await expect(module).toHaveCSS('border-radius', '20px');
 });
 
 test('invalid embed configuration fails explicitly', async ({ page }) => {
@@ -21,6 +50,50 @@ test('SSO callback with missing return material never hangs or exposes JSON', as
   await expect(page.getByRole('heading', { name: 'Sign-in needs attention' })).toBeVisible();
   await expect(page.getByText('The secure return material is missing.')).toBeVisible();
   await expect(page.locator('.spinner')).toHaveCount(0);
+  await expect(page.locator('body')).not.toContainText('{"error"');
+});
+
+test('failed internal SSO return is terminal and skips approval redemption', async ({ page }) => {
+  let redemptionRequests = 0;
+  await page.route('**/api/sso/approval/redeem', async (route) => {
+    redemptionRequests += 1;
+    await route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: '{"error":"denied"}',
+    });
+  });
+  await page.goto(
+    `/merchant?${new URLSearchParams({
+      complete: '1',
+      status: 'failed',
+      session: '11111111-1111-4111-8111-111111111111',
+      cpi: `${cpi}.fastpass`,
+    }).toString()}`
+  );
+  await expect(page.getByRole('heading', { name: 'Session could not be confirmed' })).toBeVisible();
+  await expect(page.getByText('This phone did not pass the secure check.')).toBeVisible();
+  expect(redemptionRequests).toBe(0);
+});
+
+test('forceauth return presents passkey and Google as peer proof choices', async ({ page }) => {
+  const sessionId = '11111111-1111-4111-8111-111111111111';
+  await page.addInitScript(({ key, value }) => sessionStorage.setItem(key, JSON.stringify(value)), {
+    key: `argus-challenge:sso:${sessionId}`,
+    value: {
+      sessionId,
+      nonce: 'browser-forceauth-nonce',
+      cpi: `${cpi}.forceauth`,
+      proofRequired: true,
+      freshProofRequired: true,
+      challengeUrl: `/sso/challenge/${sessionId}`,
+      failureReturnUrl: '/merchant?status=failed',
+    },
+  });
+  await page.goto(`/merchant/validate?session=${sessionId}&code=return-code`);
+  await expect(page.getByRole('heading', { name: 'Confirm your identity' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create passkey' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('{"error"');
 });
 
@@ -78,4 +151,28 @@ test('live browser reaches an encrypted QR through real Argus and AWS infrastruc
   await expect(page.getByRole('img', { name: /secure QR code/i })).toBeVisible({ timeout: 75_000 });
   await expect(page.getByRole('heading', { name: 'Scan with your phone' })).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('live phone-classified fastpass SSO reaches an explicit terminal decision', async ({
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(90_000);
+  test.skip(!live, 'requires the deployed Challenge stack');
+  if (!baseURL) throw new Error('live SSO test requires a base URL');
+  const context = await browser.newContext({ ...devices['iPhone 14'], baseURL });
+  const page = await context.newPage();
+  try {
+    await page.goto('/merchant?assurance=fastpass');
+    await page.getByRole('button', { name: 'Run demo' }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: /Session is Valid|Session could not be confirmed/,
+      })
+    ).toBeVisible({ timeout: 75_000 });
+    await expect(page.locator('body')).not.toContainText('{"error"');
+    await expect(page.locator('.spinner')).toHaveCount(0);
+  } finally {
+    await context.close();
+  }
 });

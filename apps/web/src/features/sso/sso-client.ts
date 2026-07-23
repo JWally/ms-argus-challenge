@@ -1,7 +1,6 @@
-import { baseIntegrityCpi, runAttestedScan } from '../../shared/argus.js';
-import { clearDeviceTrust, loadDeviceTrust, saveDeviceTrust } from '../../shared/device-trust.js';
+import { baseIntegrityCpi, DEFAULT_CPI, runAttestedScan } from '../../shared/argus.js';
+import { saveDeviceTrust } from '../../shared/device-trust.js';
 import { HttpError, requestJson } from '../../shared/http.js';
-import { proveWithPasskey } from '../../shared/passkeys.js';
 import { saveSsoState, type SsoBrowserState } from './sso-state.js';
 
 interface SsoStartResponse extends SsoBrowserState, Record<string, unknown> {
@@ -14,7 +13,7 @@ interface SsoChallengeResponse extends Record<string, unknown> {
   returnUrl: string;
 }
 
-interface SsoValidateResponse extends Record<string, unknown> {
+export interface SsoValidateResponse extends Record<string, unknown> {
   verdict: 'approved' | 'failed';
   reason: string;
   reasons: string[];
@@ -26,14 +25,24 @@ interface SsoValidateResponse extends Record<string, unknown> {
   nextDeviceTrust?: string | null;
 }
 
+export interface SsoProofBody {
+  deviceTrustToken?: string;
+  webauthn?: unknown;
+  oauth?: { provider: 'google'; token: string };
+}
+
 async function ssoLeg(cpi: string, payload: Record<string, unknown>) {
   return runAttestedScan({ cpi: baseIntegrityCpi(cpi), payload: { ...payload, cpi } });
+}
+
+export function defaultSsoCpi(): string {
+  return `${baseIntegrityCpi(DEFAULT_CPI)}.stepup`;
 }
 
 export async function startSso(input: {
   cpi: string;
   challengeId: string;
-  callbackUrl: string;
+  callbackUrl?: string;
 }): Promise<SsoStartResponse> {
   const scan = await ssoLeg(input.cpi, {
     role: 'merchant-start',
@@ -45,15 +54,19 @@ export async function startSso(input: {
       ...scan,
       cpi: input.cpi,
       merchantSessionId: input.challengeId,
-      merchantChallengeId: input.challengeId,
-      merchantCallbackUrl: input.callbackUrl,
+      ...(input.callbackUrl
+        ? {
+            merchantChallengeId: input.challengeId,
+            merchantCallbackUrl: input.callbackUrl,
+          }
+        : {}),
     }),
   });
   saveSsoState(response);
   return response;
 }
 
-export async function completeSsoChallenge(state: SsoBrowserState) {
+export async function completeSsoChallenge(state: SsoBrowserState): Promise<SsoChallengeResponse> {
   const scan = await ssoLeg(state.cpi, {
     role: 'argus-challenge',
     ssoSessionId: state.sessionId,
@@ -73,10 +86,10 @@ function failedVerdict(error: unknown): SsoValidateResponse | null {
     : null;
 }
 
-async function postValidation(
+export async function submitSsoValidation(
   state: SsoBrowserState,
   returnCode: string,
-  proof: Record<string, unknown>
+  proof: SsoProofBody
 ): Promise<SsoValidateResponse> {
   const scan = await ssoLeg(state.cpi, {
     role: 'merchant-validate',
@@ -84,8 +97,9 @@ async function postValidation(
     nonce: state.nonce,
     returnCode,
   });
+  let result: SsoValidateResponse;
   try {
-    return await requestJson<SsoValidateResponse>(
+    result = await requestJson<SsoValidateResponse>(
       `/api/sso/${state.sessionId}/validate`,
       {
         method: 'POST',
@@ -94,46 +108,32 @@ async function postValidation(
       45_000
     );
   } catch (error) {
-    const verdict = failedVerdict(error);
-    if (verdict) return verdict;
-    throw error;
+    const failed = failedVerdict(error);
+    if (!failed) throw error;
+    result = failed;
   }
+  saveDeviceTrust(result.nextDeviceTrust ?? null);
+  return result;
 }
 
-function trustAllowed(state: SsoBrowserState): string | null {
-  return state.freshProofRequired ? null : loadDeviceTrust();
-}
-
-async function validationProof(state: SsoBrowserState): Promise<Record<string, unknown>> {
-  if (!state.proofRequired) return {};
-  return { webauthn: await proveWithPasskey(state.nonce) };
-}
-
-export async function validateSso(
-  state: SsoBrowserState,
-  returnCode: string
-): Promise<SsoValidateResponse> {
-  const trust = trustAllowed(state);
-  try {
-    const result = await postValidation(
-      state,
-      returnCode,
-      trust ? { deviceTrustToken: trust } : await validationProof(state)
-    );
-    saveDeviceTrust(result.nextDeviceTrust ?? null);
-    return result;
-  } catch (error) {
-    if (!(trust && error instanceof HttpError && error.status === 401)) throw error;
-    clearDeviceTrust();
-    const result = await postValidation(state, returnCode, await validationProof(state));
-    saveDeviceTrust(result.nextDeviceTrust ?? null);
-    return result;
-  }
+export function redeemSsoApproval(
+  sessionId: string,
+  cpi: string
+): Promise<Record<string, unknown>> {
+  return requestJson('/api/sso/approval/redeem', {
+    method: 'POST',
+    body: JSON.stringify({ sessionId, cpi }),
+  });
 }
 
 export function validationDestination(state: SsoBrowserState, result: SsoValidateResponse): string {
   if (!result.merchantCallbackUrl || !result.merchantChallengeId) {
-    return `/merchant?${new URLSearchParams({ complete: '1', session: state.sessionId, cpi: state.cpi })}`;
+    return `/merchant?${new URLSearchParams({
+      complete: '1',
+      session: state.sessionId,
+      cpi: state.cpi,
+      status: result.verdict,
+    })}`;
   }
   const callback = new URL(result.merchantCallbackUrl);
   callback.searchParams.set('session', state.sessionId);

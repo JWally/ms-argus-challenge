@@ -31,6 +31,7 @@ function point(canvas: HTMLCanvasElement, event: ReactPointerEvent) {
 interface DrawingCanvas {
   canvasReference: RefObject<HTMLCanvasElement | null>;
   hasInk: boolean;
+  hasStarted: boolean;
   clear(): void;
   begin(event: ReactPointerEvent<HTMLCanvasElement>): void;
   move(event: ReactPointerEvent<HTMLCanvasElement>): void;
@@ -42,11 +43,13 @@ export function useDrawingCanvas(resetKey: number, disabled: boolean): DrawingCa
   const contextReference = useRef<CanvasRenderingContext2D | null>(null);
   const isDrawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const clear = (): void => {
     if (canvasReference.current) contextReference.current = resizeCanvas(canvasReference.current);
     setHasInk(false);
   };
   useEffect(() => {
+    setHasStarted(false);
     clear();
     window.addEventListener('resize', clear);
     return () => window.removeEventListener('resize', clear);
@@ -54,6 +57,7 @@ export function useDrawingCanvas(resetKey: number, disabled: boolean): DrawingCa
   return {
     canvasReference,
     hasInk,
+    hasStarted,
     clear,
     begin(event) {
       if (disabled || !contextReference.current) return;
@@ -63,6 +67,7 @@ export function useDrawingCanvas(resetKey: number, disabled: boolean): DrawingCa
       contextReference.current.moveTo(start.x, start.y);
       isDrawing.current = true;
       setHasInk(true);
+      setHasStarted(true);
       navigator.vibrate?.(5);
     },
     move(event) {

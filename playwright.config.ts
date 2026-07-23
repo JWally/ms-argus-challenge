@@ -17,6 +17,10 @@ export default defineConfig({
           command: 'npm --workspace @argus-challenge/web run dev -- --host 127.0.0.1',
           url: 'http://127.0.0.1:5174',
           reuseExistingServer: !process.env.CI,
+          env: {
+            VITE_OAUTH_GOOGLE_CLIENT_ID:
+              process.env.VITE_OAUTH_GOOGLE_CLIENT_ID ?? 'playwright-google-client',
+          },
         },
       }),
   projects: [

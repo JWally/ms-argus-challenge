@@ -1,0 +1,94 @@
+.home-page {
+  width: min(100%, 64rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgb(42 44 64 / 0.75);
+  padding-bottom: 1rem;
+}
+
+.home-shell {
+  display: flex;
+  min-height: calc(100dvh - 5rem);
+  align-items: flex-start;
+  justify-content: center;
+  flex-direction: column;
+  padding: 3rem 0;
+}
+
+.home-shell .eyebrow {
+  margin: 0;
+  color: var(--accent-lit);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.home-shell h1 {
+  margin: 0.7rem 0 1.35rem;
+  font-size: clamp(3.5rem, 9vw, 6.4rem);
+  font-weight: 650;
+  line-height: 0.92;
+  letter-spacing: -0.065em;
+}
+
+.home-shell > p:not(.eyebrow) {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.home-shell .button {
+  min-width: 12rem;
+  margin-top: 1.6rem;
+}
+
+.mobile-home-copy,
+.sso-action {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .home-page {
+    padding: 1.1rem;
+  }
+
+  .home-header .pill {
+    font-size: 0;
+  }
+
+  .home-header .pill::after {
+    font-size: 0.58rem;
+    content: 'PHONE';
+  }
+
+  .home-shell {
+    min-height: calc(100dvh - 4.5rem);
+    padding: 2rem 0;
+  }
+
+  .home-shell h1 {
+    font-size: clamp(3.2rem, 18vw, 5rem);
+  }
+
+  .desktop-home-copy,
+  .pairing-action {
+    display: none;
+  }
+
+  .mobile-home-copy,
+  .sso-action {
+    display: inline-flex;
+  }
+}

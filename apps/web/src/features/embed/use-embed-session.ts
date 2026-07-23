@@ -29,6 +29,34 @@ export function useHostSize(root: RefObject<HTMLElement | null>, hostOrigin: str
   }, [hostOrigin, root]);
 }
 
+export function useHostCompact(hostOrigin: string | null): boolean {
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    if (!hostOrigin || window.parent === window) return;
+    const receiveViewport = (event: MessageEvent): void => {
+      if (
+        event.source !== window.parent ||
+        event.origin !== hostOrigin ||
+        !event.data ||
+        typeof event.data !== 'object'
+      ) {
+        return;
+      }
+      const message = event.data as Record<string, unknown>;
+      if (
+        message.source === 'argus-captcha-host' &&
+        message.event === 'viewport' &&
+        typeof message.width === 'number'
+      ) {
+        setCompact(message.width < 640);
+      }
+    };
+    window.addEventListener('message', receiveViewport);
+    return () => window.removeEventListener('message', receiveViewport);
+  }, [hostOrigin]);
+  return compact;
+}
+
 export function useEmbedSession(config: EmbedConfig | null): EmbedViewState {
   const [view, setView] = useState<EmbedViewState>({
     status: 'Preparing challenge',
