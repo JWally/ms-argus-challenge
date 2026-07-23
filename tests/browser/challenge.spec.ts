@@ -23,6 +23,37 @@ test('phone home offers mobile SSO and opens the merchant demo', async ({ page }
   await expect(page.getByRole('button', { name: 'Run demo' })).toBeVisible();
 });
 
+test('redeemed phone link enters the challenge without reloading the mobile app', async ({
+  page,
+}) => {
+  const sessionId = '11111111-1111-4111-8111-111111111111';
+  let documentRequests = 0;
+  page.on('request', (request) => {
+    if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+      documentRequests += 1;
+    }
+  });
+  await page.route('**/api/pair-token/redeem', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        sessionId,
+        wsUrl: 'wss://relay.challenge.test/live',
+        e: 'desktop-envelope',
+        pt: 'phone-token',
+        n: 'phone-nonce',
+        proofRequired: false,
+        freshProofRequired: false,
+      }),
+    });
+  });
+
+  await page.goto('/p/single-use-token');
+  await expect(page).toHaveURL(new RegExp(`/pair/${sessionId}#`));
+  expect(documentRequests).toBe(1);
+  await expect(page.locator('.phone-panel-page')).toBeVisible();
+});
+
 test('embed exposes Pair reticle and device handshake semantics', async ({ page }) => {
   await page.goto(
     `/embed?${new URLSearchParams({

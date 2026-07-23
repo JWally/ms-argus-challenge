@@ -64,6 +64,8 @@ export function createHttpApi(
       routeKey: '$context.routeKey',
       status: '$context.status',
       integrationStatus: '$context.integrationStatus',
+      integrationLatency: '$context.integrationLatency',
+      responseLatency: '$context.responseLatency',
       error: '$context.integrationErrorMessage',
     }),
   };

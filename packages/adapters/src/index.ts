@@ -13,8 +13,6 @@ export * from './persistence/dynamo-sso-repository.js';
 export * from './projections/merchant-projection-client.js';
 export * from './proofs/webauthn-verifier.js';
 export * from './proofs/google-oidc.js';
-export * from './qr/sealed-qr.js';
-export * from './qr/server-qr-renderer.js';
 export * from './secrets/cached-secret.js';
 export * from './verdicts/verdict-disclosure.js';
 export * from './websocket/dynamo-connection-store.js';

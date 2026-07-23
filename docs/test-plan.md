@@ -57,8 +57,13 @@ dependency direction:
   handshake rail, and settled verification states.
 - The phone uses the full-screen three-letter biometric drawing board with no
   dial pad or alternate fallback.
+- Redeeming the single-use QR link replaces the phone route inside the existing
+  browser document; it must not reload the app or integrity bootstrap between
+  the opening state and the drawing board.
 - Drawing guidance appears only before the first stroke of the three-letter
   challenge; advancing to later letters does not present the instructions again.
+- The drawing-board primary action uses a filled white, dark-label ready state
+  and a transparent white-label disabled inverse so both states remain legible.
 - A successfully submitted phone challenge dismisses its phone page. It first
   requests browser tab closure, then falls back to browser history or a blank
   terminal page when mobile browser policy blocks `window.close()`.
@@ -73,6 +78,8 @@ The TDD evidence for this surface is split deliberately:
 - Pure presentation and assurance transitions are unit-tested.
 - Responsive entry points, semantic state, and computed visual invariants are
   browser-tested in Chromium and mobile WebKit.
+- A top-level browser navigation counter guards the QR-link redemption handoff
+  against reintroducing a hard navigation.
 - The deployed gate proves the real QR path and a phone-classified SSO approval
   through Argus, API Gateway, DynamoDB, and the approval-cookie redemption
   boundary.
@@ -92,6 +99,21 @@ Cutover backlog:
 - Real HTTP API, DynamoDB, Secrets Manager, and both WebSocket identities.
 - Authenticated phone-to-desktop relay through API Gateway.
 - Deployed worker SHA verification and client-decryptable ECDH QR frames.
+
+## QR latency and warmup
+
+- Adapter tests preserve the four-frame encrypted PNG contract while proving
+  that native PNG encodes are dispatched concurrently.
+- Primer tests prove the expensive renderer refresh is rate-limited per Lambda
+  execution environment, shares concurrent attempts, and retries after failure.
+- HTTP entrypoint tests prove synthetic heater events warm dependencies without
+  entering the API router.
+- CDK assertions prove API Gateway and the recurring heater target the same
+  `live` alias, with six warmups per minute and the HTTP function's QR-oriented
+  memory allocation.
+- The deployed smoke gate must still decrypt all four QR frames. After deploy,
+  CloudWatch profile events are the source of truth for render and total QR
+  latency; API success alone is not a performance assertion.
 
 Still required before cutover:
 

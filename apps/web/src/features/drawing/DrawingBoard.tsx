@@ -68,19 +68,19 @@ export function DrawingBoard({ nonce, disabled = false, onComplete }: DrawingBoa
         <div className="drawing-actions">
           <button
             type="button"
-            className="button primary"
+            className="button drawing-submit"
             disabled={!drawing.hasInk || disabled}
             onClick={advance}
           >
-            {index + 1 === REQUIRED_DRAWINGS ? 'DONE' : 'Next'}
+            {index + 1 === REQUIRED_DRAWINGS ? 'DONE' : 'NEXT'}
           </button>
           <button
             type="button"
-            className="button secondary"
+            className="button drawing-erase"
             disabled={!drawing.hasInk || disabled}
             onClick={drawing.clear}
           >
-            Erase
+            ERASE
           </button>
         </div>
       </main>

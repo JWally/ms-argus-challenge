@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Wordmark } from '../components/Brand.js';
 import { pairBlobToFragment, type PairBlob } from '../features/phone/phone-binding.js';
 import { requestJson, userFacingError } from '../shared/http.js';
 
 export function PairTokenPage() {
   const { token = '' } = useParams();
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!token) return;
@@ -16,7 +17,7 @@ export function PairTokenPage() {
     })
       .then((blob) => {
         if (!cancelled)
-          window.location.replace(`/pair/${blob.sessionId}#${pairBlobToFragment(blob)}`);
+          void navigate(`/pair/${blob.sessionId}#${pairBlobToFragment(blob)}`, { replace: true });
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(userFacingError(cause));
@@ -24,7 +25,7 @@ export function PairTokenPage() {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [navigate, token]);
   return (
     <StatusPage
       title={error ? 'Link unavailable' : 'Opening challenge'}

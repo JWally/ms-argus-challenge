@@ -18,6 +18,7 @@ await build({
   format: 'esm',
   platform: 'node',
   target: ['node22'],
+  external: ['sharp'],
   sourcemap: true,
   legalComments: 'none',
 });

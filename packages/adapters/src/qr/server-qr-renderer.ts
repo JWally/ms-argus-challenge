@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { PNG } from 'pngjs';
 import QRCode from 'qrcode';
+import sharp from 'sharp';
 
 const QR_SCALE = 16;
 const QUIET_MODULES = 2;
@@ -13,11 +13,53 @@ interface QrModules {
   get(x: number, y: number): number;
 }
 
+export interface QrFrameProfile {
+  maskMs: number;
+  paintMs: number;
+  encodeMs: number;
+  totalMs: number;
+  bytes: number;
+}
+
+export interface QrRenderProfile {
+  createMs: number;
+  totalMs: number;
+  frames: QrFrameProfile[];
+}
+
 export interface RenderedQrFrames {
   frames: Uint8Array[];
   frameMs: number;
   frameCount: number;
   width: number;
+  profile: QrRenderProfile;
+}
+
+export interface PngEncodeInput {
+  pixels: Uint8Array;
+  width: number;
+}
+
+interface QrRaster {
+  pixels: Uint8Array;
+  width: number;
+}
+
+export interface PairQrRendererDependencies {
+  encodePng(input: PngEncodeInput): Promise<Uint8Array>;
+  nowMilliseconds(): number;
+}
+
+function nowMilliseconds(): number {
+  return Number(process.hrtime.bigint()) / 1_000_000;
+}
+
+async function encodePng({ pixels, width }: PngEncodeInput): Promise<Uint8Array> {
+  return sharp(pixels, {
+    raw: { width, height: width, channels: 4 },
+  })
+    .png({ compressionLevel: 6, adaptiveFiltering: false })
+    .toBuffer();
 }
 
 function isFunctionModule(row: number, column: number, moduleCount: number): boolean {
@@ -63,7 +105,7 @@ function displayedDark(modules: QrModules, row: number, column: number, mask: Ui
 }
 
 function fillRectangle(
-  png: PNG,
+  raster: QrRaster,
   xStart: number,
   yStart: number,
   width: number,
@@ -72,21 +114,21 @@ function fillRectangle(
   const value = dark ? 0 : 255;
   for (let y = yStart; y < yStart + width; y += 1) {
     for (let x = xStart; x < xStart + width; x += 1) {
-      const offset = (y * png.width + x) * 4;
-      png.data[offset] = value;
-      png.data[offset + 1] = value;
-      png.data[offset + 2] = value;
-      png.data[offset + 3] = 255;
+      const offset = (y * raster.width + x) * 4;
+      raster.pixels[offset] = value;
+      raster.pixels[offset + 1] = value;
+      raster.pixels[offset + 2] = value;
+      raster.pixels[offset + 3] = 255;
     }
   }
 }
 
-function paintModules(png: PNG, modules: QrModules, mask: Uint8Array): void {
+function paintModules(raster: QrRaster, modules: QrModules, mask: Uint8Array): void {
   for (let row = 0; row < modules.size; row += 1) {
     for (let column = 0; column < modules.size; column += 1) {
       if (displayedDark(modules, row, column, mask)) {
         fillRectangle(
-          png,
+          raster,
           (column + QUIET_MODULES) * QR_SCALE,
           (row + QUIET_MODULES) * QR_SCALE,
           QR_SCALE,
@@ -97,14 +139,14 @@ function paintModules(png: PNG, modules: QrModules, mask: Uint8Array): void {
   }
 }
 
-function paintPoisonCenters(png: PNG, modules: QrModules, mask: Uint8Array): void {
+function paintPoisonCenters(raster: QrRaster, modules: QrModules, mask: Uint8Array): void {
   const width = Math.round(QR_SCALE * POISON_RATIO);
   const offset = Math.round((QR_SCALE - width) / 2);
   for (let row = 0; row < modules.size; row += 1) {
     for (let column = 0; column < modules.size; column += 1) {
       if (isFunctionModule(row, column, modules.size)) continue;
       fillRectangle(
-        png,
+        raster,
         (column + QUIET_MODULES) * QR_SCALE + offset,
         (row + QUIET_MODULES) * QR_SCALE + offset,
         width,
@@ -114,28 +156,71 @@ function paintPoisonCenters(png: PNG, modules: QrModules, mask: Uint8Array): voi
   }
 }
 
-function renderFrame(modules: QrModules, wrongRate: number, seed: string): Uint8Array {
+async function renderFrame(
+  modules: QrModules,
+  wrongRate: number,
+  seed: string,
+  dependencies: PairQrRendererDependencies
+): Promise<{ png: Uint8Array; profile: QrFrameProfile }> {
+  const startedAt = dependencies.nowMilliseconds();
   const width = (modules.size + QUIET_MODULES * 2) * QR_SCALE;
-  const png = new PNG({ width, height: width });
-  png.data.fill(255);
+  const pixels = new Uint8Array(width * width * 4);
+  const raster = { pixels, width };
+  pixels.fill(255);
+  const maskStartedAt = dependencies.nowMilliseconds();
   const mask = buildFlipMask(modules, wrongRate, seed);
-  paintModules(png, modules, mask);
-  paintPoisonCenters(png, modules, mask);
-  return PNG.sync.write(png);
-}
-
-export async function renderPairQrFrames(
-  pairOrigin: string,
-  token: string,
-  suffix = ''
-): Promise<RenderedQrFrames> {
-  const url = `${pairOrigin}/p/${token}${suffix}`;
-  const modules = QRCode.create(url, { errorCorrectionLevel: 'M' }).modules;
-  const frames = WRONG_RATES.map((rate, index) => renderFrame(modules, rate, `${token}:${index}`));
+  const maskMs = dependencies.nowMilliseconds() - maskStartedAt;
+  const paintStartedAt = dependencies.nowMilliseconds();
+  paintModules(raster, modules, mask);
+  paintPoisonCenters(raster, modules, mask);
+  const paintMs = dependencies.nowMilliseconds() - paintStartedAt;
+  const encodeStartedAt = dependencies.nowMilliseconds();
+  const png = await dependencies.encodePng({ pixels, width });
+  const encodeMs = dependencies.nowMilliseconds() - encodeStartedAt;
   return {
-    frames,
-    frameMs: FRAME_MS,
-    frameCount: frames.length,
-    width: (modules.size + QUIET_MODULES * 2) * QR_SCALE,
+    png,
+    profile: {
+      maskMs,
+      paintMs,
+      encodeMs,
+      totalMs: dependencies.nowMilliseconds() - startedAt,
+      bytes: png.byteLength,
+    },
   };
 }
+
+export function createPairQrRenderer(
+  overrides: Partial<PairQrRendererDependencies> = {}
+): (pairOrigin: string, token: string, suffix?: string) => Promise<RenderedQrFrames> {
+  const dependencies: PairQrRendererDependencies = {
+    encodePng,
+    nowMilliseconds,
+    ...overrides,
+  };
+  return async (pairOrigin, token, suffix = '') => {
+    const startedAt = dependencies.nowMilliseconds();
+    const createStartedAt = dependencies.nowMilliseconds();
+    const modules = QRCode.create(`${pairOrigin}/p/${token}${suffix}`, {
+      errorCorrectionLevel: 'M',
+    }).modules;
+    const createMs = dependencies.nowMilliseconds() - createStartedAt;
+    const rendered = await Promise.all(
+      WRONG_RATES.map((rate, index) =>
+        renderFrame(modules, rate, `${token}:${index}`, dependencies)
+      )
+    );
+    return {
+      frames: rendered.map((frame) => frame.png),
+      frameMs: FRAME_MS,
+      frameCount: rendered.length,
+      width: (modules.size + QUIET_MODULES * 2) * QR_SCALE,
+      profile: {
+        createMs,
+        totalMs: dependencies.nowMilliseconds() - startedAt,
+        frames: rendered.map((frame) => frame.profile),
+      },
+    };
+  };
+}
+
+export const renderPairQrFrames = createPairQrRenderer();

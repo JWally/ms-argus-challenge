@@ -2,7 +2,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { Architecture, Runtime } from 'aws-cdk-lib/aws-lambda';
+import { Architecture, Runtime, type IFunction } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { Secret } from 'aws-cdk-lib/aws-secretsmanager';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
@@ -10,16 +10,33 @@ import { WebSocketLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integra
 import type { Construct } from 'constructs';
 import type { ChallengeDeploymentConfig } from './deployment-config.js';
 import { createHttpApi } from './http-api.js';
+import { createRecurringAliasHeater } from './recurring-alias-heater.js';
 
 const moduleDirectory = dirname(fileURLToPath(import.meta.url));
 const repository = join(moduleDirectory, '../..');
 
-function functionDefaults() {
+function functionDefaults(nodeModules: string[] = []) {
   return {
     runtime: Runtime.NODEJS_22_X,
     architecture: Architecture.ARM_64,
     timeout: Duration.seconds(15),
-    bundling: { minify: true, sourceMap: false, target: 'node22' },
+    bundling: {
+      minify: true,
+      sourceMap: false,
+      target: 'node22',
+      ...(nodeModules.length > 0
+        ? {
+            nodeModules,
+            // Local CDK bundling otherwise installs host-x64 optional packages
+            // even though this function deploys on arm64.
+            environment: {
+              npm_config_cpu: 'arm64',
+              npm_config_os: 'linux',
+              npm_config_libc: 'glibc',
+            },
+          }
+        : {}),
+    },
     depsLockFilePath: join(repository, 'package-lock.json'),
     projectRoot: repository,
   };
@@ -95,11 +112,13 @@ function createHttpRuntime(input: {
 }) {
   const { scope, config, state, webSocket } = input;
   const region = Stack.of(scope).region;
+  // CDK stages native modules from the entrypoint workspace, so apps/api keeps
+  // a direct sharp packaging dependency in addition to the adapter dependency.
   const handler = new NodejsFunction(scope, 'HttpFunction', {
-    ...functionDefaults(),
+    ...functionDefaults(['sharp']),
     entry: join(repository, 'apps/api/src/handler.ts'),
     handler: 'handler',
-    memorySize: 1536,
+    memorySize: 2048,
     environment: {
       TABLE_NAME: state.table.tableName,
       PUBLIC_ORIGIN: config.publicOrigin,
@@ -123,7 +142,19 @@ function createHttpRuntime(input: {
   state.trustSecret.grantRead(handler);
   state.verdictSecret.grantRead(handler);
   webSocket.api.grantManageConnections(handler);
-  return { handler, api: createHttpApi(scope, handler, [config.publicOrigin]) };
+  const live = handler.addAlias('live');
+  // Alias implements IFunction; this narrows a CDK declaration mismatch exposed
+  // by exactOptionalPropertyTypes around its optional role property.
+  const liveTarget = live as IFunction;
+  const api = createHttpApi(scope, liveTarget, [config.publicOrigin]);
+  createRecurringAliasHeater(scope, 'HttpHeater', {
+    ruleName: `${Stack.of(scope).stackName}-http-heater`,
+    target: liveTarget,
+    invokesPerMinute: 6,
+    spacingSeconds: 10,
+    warmupPayload: { source: 'argus.challenge.warmup' },
+  });
+  return { handler, live, api };
 }
 
 export function createChallengeRuntime(scope: Construct, config: ChallengeDeploymentConfig) {
