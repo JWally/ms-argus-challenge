@@ -1,7 +1,14 @@
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { DrawingBoard } from '../features/drawing/DrawingBoard.js';
+import { dismissCompletedPhonePage } from '../features/phone/phone-page-exit.js';
 import { usePhoneChallenge } from '../features/phone/use-phone-challenge.js';
 import { StatusPage } from './PairTokenPage.js';
+
+function CompletedPhonePage() {
+  useEffect(() => dismissCompletedPhonePage(window), []);
+  return <StatusPage title="All done" detail="Closing this page…" />;
+}
 
 export function PhonePage() {
   const { sessionId = '' } = useParams();
@@ -14,7 +21,7 @@ export function PhonePage() {
     return <StatusPage title="Verifying" detail="Confirm your device if prompted." busy />;
   }
   if (challenge.phase === 'complete') {
-    return <StatusPage title="All done" detail="Return to the original device to continue." />;
+    return <CompletedPhonePage />;
   }
   if (challenge.phase === 'error' || !challenge.session) {
     return (
@@ -24,13 +31,5 @@ export function PhonePage() {
       />
     );
   }
-  return (
-    <main className="phone-shell">
-      <div className="brand-mark">
-        argus<span>.challenge</span>
-      </div>
-      <DrawingBoard nonce={challenge.session.binding.nonce} onComplete={challenge.finish} />
-      <p className="privacy-note">Your drawing stays on this device.</p>
-    </main>
-  );
+  return <DrawingBoard nonce={challenge.session.binding.nonce} onComplete={challenge.finish} />;
 }

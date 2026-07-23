@@ -32,6 +32,31 @@ Entrypoints perform transport conversion and dependency composition only.
 `infrastructure` creates deployable AWS resources and passes configuration to
 entrypoints. Runtime code never lives under the infrastructure directory.
 
+## Web application model
+
+The browser app applies the same dependency rule at a smaller scale:
+
+```text
+main/routes -> pages/controllers -> feature use cases and views
+                                  -> shared browser adapters
+                                  -> reusable components
+```
+
+- `pages` are route entrypoints. They read route state, compose feature APIs,
+  and select a view; they do not own assurance or protocol policy.
+- `features/<capability>` keeps each vertical slice together. Pure state and
+  presentation mappings are tested without a browser, while hooks coordinate
+  effects and feature views render the result.
+- `shared` implements browser-specific ports such as HTTP, Argus scans,
+  WebSocket, passkeys, Google proof, deadlines, and device trust.
+- `components` contains feature-independent visual primitives only.
+- `styles` is split by surface with one token layer instead of a global
+  catch-all stylesheet.
+
+Dependency-cruiser ratchets this direction: shared code and reusable components
+cannot reach into features or pages, and features cannot reach back into route
+pages.
+
 ## Trust boundaries
 
 - Browser messages are notifications, never merchant proof.

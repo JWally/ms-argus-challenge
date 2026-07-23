@@ -1,0 +1,158 @@
+.ax-link {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  border-top: 1px solid var(--module-line);
+  padding-top: 14px;
+}
+
+.aegis.compact {
+  min-height: 0;
+}
+
+.aegis.compact .ax-link {
+  display: none;
+}
+
+.ax-node {
+  display: flex;
+  min-width: 62px;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ax-chip {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--module-line-2);
+  border-radius: 10px;
+  background: var(--module-ink-3);
+  color: var(--module-muted);
+  transition:
+    color 300ms ease,
+    border-color 300ms ease,
+    background 300ms ease;
+}
+
+.ax-chip svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ax-tag {
+  color: var(--module-muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ax-node.here .ax-chip {
+  border-color: color-mix(in srgb, var(--module-violet) 55%, var(--module-line-2));
+  background: color-mix(in srgb, var(--module-violet) 12%, var(--module-ink-3));
+  color: var(--module-violet-lit);
+}
+
+.verified .ax-node.here .ax-chip {
+  border-color: color-mix(in srgb, var(--module-mint) 55%, var(--module-line-2));
+  background: color-mix(in srgb, var(--module-mint) 12%, var(--module-ink-3));
+  color: var(--module-mint);
+}
+
+.ax-track {
+  position: relative;
+  height: 22px;
+}
+
+.ax-track-label {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--module-state) 72%, var(--module-fg));
+  font-family: var(--mono);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ax-rail,
+.ax-live {
+  position: absolute;
+  right: 0;
+  bottom: 2px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.ax-rail {
+  background-image: linear-gradient(90deg, var(--module-line-2) 0 6px, transparent 6px 12px);
+  background-size: 12px 2px;
+}
+
+.ax-live {
+  right: auto;
+  width: 0;
+  background: var(--module-state);
+  transition: width 500ms ease;
+}
+
+.verified .ax-live,
+.failed .ax-live {
+  width: 100%;
+}
+
+.ax-pulse {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--module-violet-lit);
+  box-shadow: 0 0 10px 2px rgb(139 92 246 / 0.7);
+  opacity: 0;
+}
+
+.pairing .ax-pulse {
+  animation: ax-travel 1.15s ease-in-out infinite;
+}
+
+@keyframes ax-ping {
+  0% {
+    box-shadow: 0 0 0 0 rgb(139 92 246 / 0.55);
+  }
+
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@keyframes ax-travel {
+  0% {
+    left: 4%;
+    opacity: 0;
+  }
+
+  15%,
+  85% {
+    opacity: 1;
+  }
+
+  100% {
+    left: 96%;
+    opacity: 0;
+  }
+}

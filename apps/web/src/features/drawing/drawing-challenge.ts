@@ -16,3 +16,7 @@ export function drawingChallenge(nonce: string, index: number): DrawingPrompt {
   seed >>>= 0;
   return { letter: LETTERS[seed % LETTERS.length] ?? 'A', seed };
 }
+
+export function shouldShowDrawingInstructions(index: number, hasStarted: boolean): boolean {
+  return index === 0 && !hasStarted;
+}

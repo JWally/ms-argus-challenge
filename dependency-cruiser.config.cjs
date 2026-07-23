@@ -30,6 +30,24 @@ module.exports = {
       from: { path: '^apps/(web|loader)/' },
       to: { path: '^(apps/(api|websocket)|packages/adapters|infrastructure)/' },
     },
+    {
+      name: 'web-shared-does-not-import-features-or-pages',
+      severity: 'error',
+      from: { path: '^apps/web/src/shared/' },
+      to: { path: '^apps/web/src/(features|pages)/' },
+    },
+    {
+      name: 'web-components-are-feature-independent',
+      severity: 'error',
+      from: { path: '^apps/web/src/components/' },
+      to: { path: '^apps/web/src/(features|pages)/' },
+    },
+    {
+      name: 'web-features-do-not-import-pages',
+      severity: 'error',
+      from: { path: '^apps/web/src/features/' },
+      to: { path: '^apps/web/src/pages/' },
+    },
   ],
   options: {
     doNotFollow: { path: 'node_modules' },

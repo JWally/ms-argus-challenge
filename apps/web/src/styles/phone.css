@@ -1,0 +1,269 @@
+.phone-panel-page {
+  min-height: 100dvh;
+  background: var(--bg-primary);
+  color: var(--fg-primary);
+}
+
+.phone-panel-layout {
+  display: flex;
+  width: min(100%, 24rem);
+  min-height: 100dvh;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 2rem;
+  margin: 0 auto;
+  padding: max(2rem, env(safe-area-inset-top)) 1.5rem max(2rem, env(safe-area-inset-bottom));
+}
+
+.phone-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.phone-panel-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.phone-panel-icon {
+  position: relative;
+  display: grid;
+  width: 5rem;
+  height: 5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent-lit);
+  font-size: 1.7rem;
+}
+
+.phone-panel-icon.busy::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(139 92 246 / 0.25);
+  content: '';
+  animation: phone-ping 1.8s ease-out infinite;
+}
+
+.phone-panel-icon.success {
+  background: rgb(74 222 128 / 0.12);
+  color: var(--positive);
+}
+
+.phone-panel-icon.error {
+  background: rgb(248 113 113 / 0.12);
+  color: var(--negative);
+}
+
+.phone-panel-main h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.phone-panel-main p {
+  max-width: 20rem;
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.bio-draw {
+  --draw-bg: #0a0a12;
+  --draw-border: #2a2a3e;
+  --draw-text: #e2e8f0;
+  --draw-muted: #94a3b8;
+  --draw-indigo: #6366f1;
+  --draw-green: #22c55e;
+  --canvas-size: min(calc(100vw - 1rem), 600px);
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+  align-items: center;
+  flex-direction: column;
+  gap: clamp(0.75rem, 3dvh, 2rem);
+  overflow-y: auto;
+  background: var(--draw-bg);
+  padding: max(1rem, env(safe-area-inset-top)) 0.5rem max(1rem, env(safe-area-inset-bottom));
+  color: var(--draw-text);
+  touch-action: none;
+}
+
+.bio-draw-header {
+  width: var(--canvas-size);
+  text-align: center;
+}
+
+.bio-draw-title {
+  margin: 0;
+  font-size: clamp(1.75rem, 5dvh, 2.5rem);
+  letter-spacing: 0.1em;
+}
+
+.bio-draw-title span {
+  color: var(--draw-indigo);
+}
+
+.bio-draw-subtitle {
+  margin: 0.25rem 0 0.75rem;
+  color: var(--draw-muted);
+  font-size: 0.9rem;
+}
+
+.drawing-progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.drawing-progress span {
+  width: 2.4rem;
+  height: 0.2rem;
+  border-radius: 1rem;
+  background: rgb(148 163 184 / 0.2);
+}
+
+.drawing-progress span.active {
+  background: var(--draw-indigo);
+}
+
+.bio-draw-main {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  align-items: center;
+  flex: 1;
+  flex-direction: column;
+}
+
+.bio-draw-challenge {
+  position: relative;
+  display: grid;
+  width: var(--canvas-size);
+  min-height: 6rem;
+  max-height: min(13.5rem, 26dvh);
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(255 47 179 / 0.22);
+  border-radius: 8px;
+  aspect-ratio: 5 / 3;
+  background: #050505;
+}
+
+.bio-draw-dot-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bio-draw-challenge > span {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.85rem;
+  z-index: 1;
+  color: var(--draw-muted);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.drawing-surface {
+  position: relative;
+  display: flex;
+  width: var(--canvas-size);
+  min-height: 8rem;
+  max-height: calc(var(--canvas-size) * 0.75);
+  flex: 1;
+  align-items: center;
+  flex-direction: column;
+  margin-top: 0.5rem;
+}
+
+.drawing-surface canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--draw-border);
+  border-radius: 12px;
+  background: #000;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.drawing-surface.has-ink canvas {
+  border-color: var(--draw-indigo);
+}
+
+.drawing-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1.25rem;
+  color: var(--draw-text);
+  font-size: clamp(1.3rem, 4vw, 2.3rem);
+  font-weight: 300;
+  pointer-events: none;
+}
+
+.drawing-hint small {
+  color: var(--draw-green);
+  font-family: var(--mono);
+  font-size: clamp(0.75rem, 2.5vw, 1.05rem);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  animation: draw-throb 1.5s ease-in-out infinite;
+}
+
+.drawing-actions {
+  display: flex;
+  width: var(--canvas-size);
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.drawing-actions .button {
+  width: 100%;
+  border-radius: 8px;
+  font-size: 1.05rem;
+}
+
+.drawing-actions .primary {
+  border: 2px solid var(--draw-green);
+  background: rgb(34 197 94 / 0.15);
+  box-shadow: 0 0 12px rgb(34 197 94 / 0.3);
+  color: var(--draw-green);
+}
+
+.drawing-actions .secondary {
+  border: 2px solid var(--draw-indigo);
+  background: rgb(99 102 241 / 0.15);
+  box-shadow: 0 0 12px rgb(99 102 241 / 0.3);
+  color: var(--draw-indigo);
+}
+
+@keyframes phone-ping {
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+@keyframes draw-throb {
+  50% {
+    opacity: 0.5;
+    text-shadow: 0 0 20px rgb(34 197 94 / 0.6);
+  }
+}

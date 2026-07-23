@@ -61,6 +61,7 @@ const publicOrigin = 'https://challenge-dev-jw.argus.pw';
 run('npm', ['run', 'build:web'], {
   ...environment,
   VITE_MERCHANT_CPI: environment.MERCHANT_CPI,
+  VITE_OAUTH_GOOGLE_CLIENT_ID: environment.OAUTH_GOOGLE_CLIENT_ID ?? '',
 });
 run('npm', ['run', 'build:loader'], {
   ...environment,

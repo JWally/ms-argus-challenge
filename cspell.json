@@ -32,6 +32,7 @@
     "ECDH",
     "Eeqk",
     "fastpass",
+    "FedCM",
     "Fgames",
     "Fmerchant",
     "forceauth",
@@ -62,6 +63,7 @@
     "unconfigured",
     "UXTLGDMLC",
     "WebAuthn",
-    "WebSocket"
+    "WebSocket",
+    "wordmark"
   ]
 }

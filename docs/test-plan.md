@@ -44,6 +44,39 @@ Currently automated:
 - Deployed loader mount, duplicate-mount rejection, destroy, and remount.
 - Deployed browser session start through Argus and AWS to an encrypted QR.
 
+## Pair experience parity
+
+Pair remains the behavioral and visual reference for the public experience, not
+an implementation template. Challenge must preserve these user-facing
+contracts while keeping its `contracts <- core <- adapters <- entrypoints`
+dependency direction:
+
+- Desktop demo presents pairing; phone-sized demo presents mobile SSO instead
+  of asking one phone to scan itself.
+- The embedded widget uses Pair's QR reticle, explicit desktop-to-phone
+  handshake rail, and settled verification states.
+- The phone uses the full-screen three-letter biometric drawing board with no
+  dial pad or alternate fallback.
+- Drawing guidance appears only before the first stroke of the three-letter
+  challenge; advancing to later letters does not present the instructions again.
+- A successfully submitted phone challenge dismisses its phone page. It first
+  requests browser tab closure, then falls back to browser history or a blank
+  terminal page when mobile browser policy blocks `window.close()`.
+- The hosted SSO journey uses the three-step Argus status shell; the unbound
+  demo uses the separate daylight merchant launch and result surfaces.
+- `.fastpass` validates without proof, `.stepup` tries device trust before
+  offering explicit proof, and `.forceauth` always offers a fresh passkey or
+  Google proof.
+
+The TDD evidence for this surface is split deliberately:
+
+- Pure presentation and assurance transitions are unit-tested.
+- Responsive entry points, semantic state, and computed visual invariants are
+  browser-tested in Chromium and mobile WebKit.
+- The deployed gate proves the real QR path and a phone-classified SSO approval
+  through Argus, API Gateway, DynamoDB, and the approval-cookie redemption
+  boundary.
+
 Cutover backlog:
 
 - Physical Chromium desktop to iOS/WebKit drawing-board completion.
