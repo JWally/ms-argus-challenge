@@ -1,0 +1,41 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "*.config.ts", "tests/**/*.{test,spec,e2e}.ts"],
+      "project": ["scripts/*.mjs", "*.ts", "tests/**/*.ts"]
+    },
+    "apps/api": {
+      "entry": ["src/handler.ts", "src/websocket-handler.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/loader": {
+      "entry": ["src/loader.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/web": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/adapters": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/contracts": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/core": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/testkit": {
+      "project": ["src/**/*.ts"]
+    },
+    "infrastructure": {
+      "entry": ["bin/app.ts", "cloudfront/spa-router.js", "lib/**/*.test.ts"],
+      "project": ["bin/**/*.ts", "lib/**/*.ts", "cloudfront/**/*.js"]
+    }
+  },
+  "ignoreDependencies": ["@types/*"]
+}

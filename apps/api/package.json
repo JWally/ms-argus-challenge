@@ -1,0 +1,14 @@
+{
+  "name": "@argus-challenge/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.859.0",
+    "@aws-sdk/client-secrets-manager": "^3.859.0",
+    "@aws-sdk/lib-dynamodb": "^3.859.0",
+    "@argus-challenge/adapters": "0.1.0",
+    "@argus-challenge/contracts": "0.1.0",
+    "@argus-challenge/core": "0.1.0"
+  }
+}

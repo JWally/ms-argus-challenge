@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+cdk.out/
+.env
+.env.*
+!.env.example
+playwright-report/
+test-results/
+apps/web/public/qr-worker.js
+*.tsbuildinfo
+.DS_Store

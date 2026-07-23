@@ -1,0 +1,16 @@
+{
+  "name": "@argus-challenge/infrastructure",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "synth": "cdk synth --app 'npx tsx bin/app.ts'",
+    "diff": "cdk diff --app 'npx tsx bin/app.ts'",
+    "deploy:dev": "CDK_DEPLOYING=1 cdk deploy --all --app 'npx tsx bin/app.ts' --require-approval never -c stage=dev-jw"
+  },
+  "dependencies": {
+    "@argus-challenge/contracts": "0.1.0",
+    "aws-cdk-lib": "^2.262.0",
+    "constructs": "^10.4.2"
+  }
+}

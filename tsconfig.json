@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "allowSyntheticDefaultImports": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@argus-challenge/adapters": ["packages/adapters/src/index.ts"],
+      "@argus-challenge/contracts": ["packages/contracts/src/index.ts"],
+      "@argus-challenge/contracts/*": ["packages/contracts/src/*"],
+      "@argus-challenge/core": ["packages/core/src/index.ts"],
+      "@argus-challenge/testkit": ["packages/testkit/src/index.ts"]
+    },
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "ES2023",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "packages/**/*.ts",
+    "infrastructure/**/*.ts",
+    "scripts/**/*.mts",
+    "tests/**/*.ts",
+    "*.ts"
+  ],
+  "exclude": ["**/dist/**", "coverage", "cdk.out"]
+}

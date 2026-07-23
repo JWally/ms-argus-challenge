@@ -1,0 +1,9 @@
+{
+  "name": "@argus-challenge/loader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@argus-challenge/contracts": "0.1.0"
+  }
+}

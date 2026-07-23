@@ -1,0 +1,19 @@
+{
+  "name": "@argus-challenge/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./browser/captcha-message": "./src/browser/captcha-message.ts",
+    "./qr/ecdh-seal": "./src/qr/ecdh-seal.ts",
+    "./qr/frame-bundle": "./src/qr/frame-bundle.ts",
+    "./verdicts/fixed-envelope": "./src/verdicts/fixed-envelope.ts"
+  },
+  "dependencies": {
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@argus-challenge/testkit": "0.1.0"
+  }
+}
