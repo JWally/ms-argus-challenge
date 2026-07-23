@@ -34,6 +34,9 @@
 - Pair and all three SSO legs fail closed unless their current, verified API
   projections carry the device id derived from the exact public key that signs
   the corresponding Challenge attestation.
+- Passkey authentication requests discoverable credentials even when local
+  storage has no credential hint; registration remains a distinct choice, and
+  new credentials are discoverable.
 - External attack-harness and live-target checks are intentionally delegated;
   they are not part of the local implementation run.
 

@@ -123,6 +123,7 @@ test('forceauth return presents passkey and Google as peer proof choices', async
   });
   await page.goto(`/merchant/validate?session=${sessionId}&code=return-code`);
   await expect(page.getByRole('heading', { name: 'Confirm your identity' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Use passkey' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Create passkey' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
   await expect(page.locator('body')).not.toContainText('{"error"');

@@ -1,4 +1,3 @@
-const PASSKEY_HINT_KEY = 'argus-challenge:passkey-registered';
 const PASSKEY_CREDENTIAL_KEY = 'argus-challenge:passkey-id';
 const PASSKEY_TIMEOUT_MS = 60_000;
 
@@ -12,7 +11,6 @@ function storageValue(key: string): string | null {
 
 function removePasskeyHint(): void {
   try {
-    localStorage.removeItem(PASSKEY_HINT_KEY);
     localStorage.removeItem(PASSKEY_CREDENTIAL_KEY);
   } catch {
     // Hints are optional; server verification remains authoritative.
@@ -24,7 +22,6 @@ export function rememberPasskeyCredential(value: unknown): void {
     value && typeof value === 'object' ? (value as { id?: unknown }).id : undefined;
   if (typeof credentialId !== 'string') return;
   try {
-    localStorage.setItem(PASSKEY_HINT_KEY, '1');
     localStorage.setItem(PASSKEY_CREDENTIAL_KEY, credentialId);
   } catch {
     // A credential remains usable without the local presentation hint.
@@ -37,10 +34,6 @@ function baseOptions(nonce: string) {
 
 function encodedUserId(hostname: string): string {
   return btoa(hostname).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
-}
-
-export function hasPasskeyHint(): boolean {
-  return storageValue(PASSKEY_HINT_KEY) === '1';
 }
 
 export function clearPasskeyHint(): void {
@@ -85,8 +78,8 @@ export async function createNewPasskey(nonce: string): Promise<unknown> {
         ],
         authenticatorSelection: {
           authenticatorAttachment: 'platform',
-          residentKey: 'preferred',
-          requireResidentKey: false,
+          residentKey: 'required',
+          requireResidentKey: true,
           userVerification: 'required',
         },
         attestation: 'none',
@@ -99,11 +92,9 @@ export async function createNewPasskey(nonce: string): Promise<unknown> {
 }
 
 export async function proveWithPasskey(nonce: string): Promise<unknown> {
-  if (hasPasskeyHint()) {
-    const authentication = await authenticateExistingPasskey(nonce);
-    if (authentication && typeof authentication === 'object' && !('error' in authentication)) {
-      return authentication;
-    }
+  const authentication = await authenticateExistingPasskey(nonce);
+  if (authentication && typeof authentication === 'object' && !('error' in authentication)) {
+    return authentication;
   }
   return createNewPasskey(nonce);
 }
