@@ -82,6 +82,14 @@
   --draw-muted: #94a3b8;
   --draw-indigo: #6366f1;
   --draw-green: #22c55e;
+  --draw-next-bg: #ffffff;
+  --draw-next-fg: #0a0a12;
+  --draw-next-disabled-bg: #0a0a12;
+  --draw-next-disabled-fg: #ffffff;
+  --draw-erase-bg: #171923;
+  --draw-erase-fg: #e5e7eb;
+  --draw-erase-disabled-bg: #11131a;
+  --draw-erase-disabled-fg: #94a3b8;
   --canvas-size: min(calc(100vw - 1rem), 600px);
   display: flex;
   width: 100%;
@@ -240,18 +248,44 @@
   font-size: 1.05rem;
 }
 
-.drawing-actions .primary {
-  border: 2px solid var(--draw-green);
-  background: rgb(34 197 94 / 0.15);
-  box-shadow: 0 0 12px rgb(34 197 94 / 0.3);
-  color: var(--draw-green);
+.drawing-actions .drawing-submit {
+  border: 2px solid var(--draw-next-bg);
+  background: var(--draw-next-bg);
+  box-shadow: 0 0 14px rgb(255 255 255 / 0.18);
+  color: var(--draw-next-fg);
 }
 
-.drawing-actions .secondary {
-  border: 2px solid var(--draw-indigo);
-  background: rgb(99 102 241 / 0.15);
-  box-shadow: 0 0 12px rgb(99 102 241 / 0.3);
-  color: var(--draw-indigo);
+.drawing-actions .drawing-submit:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.drawing-actions .drawing-erase {
+  border: 2px solid #64748b;
+  background: var(--draw-erase-bg);
+  box-shadow: none;
+  color: var(--draw-erase-fg);
+}
+
+.drawing-actions .drawing-erase:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #222631;
+}
+
+.drawing-actions .button:disabled {
+  opacity: 1;
+}
+
+.drawing-actions .drawing-submit:disabled {
+  border-color: rgb(255 255 255 / 0.55);
+  background: transparent;
+  box-shadow: none;
+  color: var(--draw-next-disabled-fg);
+}
+
+.drawing-actions .drawing-erase:disabled {
+  border-color: #334155;
+  background: var(--draw-erase-disabled-bg);
+  color: var(--draw-erase-disabled-fg);
 }
 
 @keyframes phone-ping {

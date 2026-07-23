@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { createWorkerIntegrityVerifier, sealPairTokenQr } from '@argus-challenge/adapters';
+import { createWorkerIntegrityVerifier } from '@argus-challenge/adapters';
+import { createServerQrRendererPrimer, sealPairTokenQr } from '@argus-challenge/adapters/qr';
 import {
   INDIVIDUAL_SCORE_LIMIT,
   classifyProjection,
@@ -165,6 +166,11 @@ export function createPairRuntime(runtime: SharedRuntime) {
     allowedOrigins: runtime.config.allowedOrigins,
     fetch,
   });
+  const primeQrRenderer = createServerQrRendererPrimer(runtime.config.publicOrigin);
+  const sealQr = (input: Parameters<typeof sealPairTokenQr>[0]) =>
+    sealPairTokenQr(input, {
+      recordProfile: (profile) => console.info(JSON.stringify(profile)),
+    });
   return {
     startSession: sessionStart(runtime),
     attestDesktop: desktopAttestation(runtime),
@@ -180,7 +186,7 @@ export function createPairRuntime(runtime: SharedRuntime) {
       loadSession: runtime.sessions.load,
       verifyWorkerIntegrity: workerIntegrity,
       mintToken: (blob) => mintPairToken(runtime.singleUseTokens, blob),
-      sealQr: async (input) => ({ ...(await sealPairTokenQr(input)) }),
+      sealQr: async (input) => ({ ...(await sealQr(input)) }),
       pairOrigin: runtime.config.publicOrigin,
       proofRequiredByDefault: runtime.config.proofRequiredByDefault,
       warn: console.warn,
@@ -196,6 +202,7 @@ export function createPairRuntime(runtime: SharedRuntime) {
     verifyVerdict: (body: Record<string, unknown>) =>
       verifyVerdict(body, { verdictSecret: runtime.verdictSecret }),
     loadSession: runtime.sessions.load,
+    primeQrRenderer,
   };
 }
 

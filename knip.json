@@ -7,7 +7,8 @@
     },
     "apps/api": {
       "entry": ["src/handler.ts", "src/websocket-handler.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.ts"]
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["sharp"]
     },
     "apps/loader": {
       "entry": ["src/loader.ts", "src/**/*.test.ts"],

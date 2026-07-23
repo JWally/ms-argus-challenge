@@ -8,6 +8,18 @@ origin is `https://challenge-dev-jw.argus.pw`. It has its own CloudFront
 distribution, S3 bucket, HTTP API, WebSocket API, DynamoDB table, Secrets
 Manager keys, logs, and alarms. It has no WAF association.
 
+The HTTP API routes through a versioned `live` Lambda alias. A one-minute
+EventBridge rule invokes a small heater which targets that same alias six times,
+ten seconds apart. Warmups initialize runtime secrets, touch the session store,
+and refresh the native four-frame QR encoder on each ten-second heater pass.
+Concurrent warmups share the same render, and a five-second minimum interval
+prevents duplicate work. This is warm capacity, not provisioned concurrency.
+
+QR mints emit `pair_token_qr_profile` JSON records with total, render, packing,
+sealing, and per-frame encoding timings. HTTP access records include integration
+and response latency. Use those fields rather than whole-function duration when
+diagnosing QR regressions, because the HTTP Lambda serves every Challenge route.
+
 ## Deployment gates
 
 1. `npm run quality`

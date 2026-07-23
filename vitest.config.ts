@@ -6,6 +6,7 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      '@argus-challenge/adapters/qr': `${root}packages/adapters/src/qr/index.ts`,
       '@argus-challenge/adapters': `${root}packages/adapters/src/index.ts`,
       '@argus-challenge/contracts/browser/captcha-message': `${root}packages/contracts/src/browser/captcha-message.ts`,
       '@argus-challenge/contracts/qr/ecdh-seal': `${root}packages/contracts/src/qr/ecdh-seal.ts`,

@@ -1,7 +1,43 @@
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { DrawingBoard } from './DrawingBoard.js';
+
+const phoneStyles = readFileSync(new URL('../../styles/phone.css', import.meta.url), 'utf8');
+
+function channelLuminance(channel: number): number {
+  const normalized = channel / 255;
+  return normalized <= 0.040_45 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance(hex: string): number {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  return (
+    0.2126 * channelLuminance(channels[0] ?? 0) +
+    0.7152 * channelLuminance(channels[1] ?? 0) +
+    0.0722 * channelLuminance(channels[2] ?? 0)
+  );
+}
+
+function contrastRatio(first: string, second: string): number {
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
+}
+
+function colorToken(name: string): string {
+  const prefix = `--${name}:`;
+  const declaration = phoneStyles
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.startsWith(prefix));
+  const color = declaration
+    ?.slice(prefix.length)
+    .trim()
+    .match(/^#[0-9a-fA-F]{6}/)?.[0];
+  if (!color) throw new Error(`missing phone color token ${name}`);
+  return color;
+}
 
 describe('phone drawing-board presentation', () => {
   it('keeps Pair biometric-captcha structure without an alternate challenge', () => {
@@ -20,7 +56,35 @@ describe('phone drawing-board presentation', () => {
     expect(markup).toContain('Draw the Character You See Above');
     expect(markup).toContain('Drawing 1 of 3');
     expect(markup.match(/<button/g)).toHaveLength(2);
-    expect(markup).toContain('Next');
-    expect(markup).toContain('Erase');
+    expect(markup).toContain('class="button drawing-submit"');
+    expect(markup).toContain('class="button drawing-erase"');
+    expect(markup).toContain('NEXT');
+    expect(markup).toContain('ERASE');
+  });
+
+  it('keeps enabled and disabled drawing actions readable against their backgrounds', () => {
+    const pairs = [
+      ['draw-next-fg', 'draw-next-bg'],
+      ['draw-next-disabled-fg', 'draw-next-disabled-bg'],
+      ['draw-erase-fg', 'draw-erase-bg'],
+      ['draw-erase-disabled-fg', 'draw-erase-disabled-bg'],
+    ] as const;
+
+    for (const [foreground, background] of pairs) {
+      expect(contrastRatio(colorToken(foreground), colorToken(background))).toBeGreaterThanOrEqual(
+        4.5
+      );
+    }
+    expect(phoneStyles).toContain('.drawing-actions .button:disabled');
+  });
+
+  it('uses the requested white ready treatment and its transparent inverse while disabled', () => {
+    expect(colorToken('draw-next-bg')).toBe('#ffffff');
+    expect(colorToken('draw-next-fg')).toBe(colorToken('draw-bg'));
+    expect(colorToken('draw-next-disabled-bg')).toBe(colorToken('draw-bg'));
+    expect(colorToken('draw-next-disabled-fg')).toBe('#ffffff');
+    expect(phoneStyles).toMatch(
+      /\.drawing-actions \.drawing-submit:disabled \{[^}]*background: transparent;/s
+    );
   });
 });
