@@ -21,6 +21,18 @@ list. Challenge exposes the complete latest contract, but it does not claim
 production parity until the same black-box case passes against Pair and
 Challenge.
 
+## Intentional result-callback hardening
+
+Challenge deliberately narrows Pair's browser result callback from
+`{sessionId, verdict, reason, token}` to `{sessionId, token}` and requires a
+non-empty server token. This is a security contract change: a merchant page can
+no longer mistake the client-decrypted verdict for authorization.
+
+Known consumers already gate on the token, but Pair-versus-Challenge
+differential testing must treat the omitted fields as an approved divergence.
+Pair should adopt the same token-only callback before the old implementation is
+retired.
+
 ## Browser contract
 
 - [ ] `window.argusCaptcha.render(element, options)`
@@ -28,7 +40,7 @@ Challenge.
 - [ ] automatic `.argus-captcha` mounting
 - [ ] loader data attributes and explicit embed-origin override
 - [ ] `/embed`, `/pair/:sessionId`, `/p/:token`, and `/sso/mobile` routes
-- [ ] `argus-captcha` result, size, status, and telemetry messages
+- [ ] token-only `argus-captcha` result plus size, status, and telemetry messages
 - [ ] `argus-captcha-host` viewport message
 - [ ] drawing-board challenge only; no dial pad or alternate challenge fallback
 
@@ -60,8 +72,10 @@ Challenge.
 - [ ] role-bound WebSocket bootstrap and authenticated peer relay
 - [ ] desktop reveal gating and authenticated polling recovery
 - [ ] desktop and phone projection claims
+- [ ] verified projection-to-attestation key continuity on Pair and every SSO leg
 - [ ] proof-of-life, passkey, device trust, and OAuth assurance
-- [ ] host preflight and worker-integrity enforcement
+- [ ] server-owned merchant host and minimum-assurance policy
+- [ ] QR worker delivery and encrypted frame decoding without client authority
 - [ ] SSO return-origin allowlist and single-use approval exchange
 - [ ] rate limits, replay rejection, expiry, CORS, and response headers
 

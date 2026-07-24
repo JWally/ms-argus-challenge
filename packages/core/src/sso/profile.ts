@@ -1,5 +1,6 @@
 import type { MerchantProjection } from '@argus-challenge/contracts';
 import type { AttestationInput } from '../attestations/attestation-bindings.js';
+import { evaluateProjectionDeviceBinding } from '../attestations/projection-device-binding.js';
 import { classifyProjection } from '../verdicts/projection-policy.js';
 import type { SsoLegProfile } from './continuity.js';
 
@@ -23,9 +24,11 @@ export function profileFromProjection(
       isProxy: false,
       isDatacenter: false,
       isVpn: false,
+      projectionDeviceBound: false,
     };
   }
   const scan = classifyProjection(projection);
+  const binding = evaluateProjectionDeviceBinding(projection, attestation.publicKey);
   return {
     argusSessionId,
     keyId: attestation.keyId,
@@ -38,6 +41,7 @@ export function profileFromProjection(
     isProxy: scan.isProxy,
     isDatacenter: scan.isDatacenter,
     isVpn: scan.isVpn,
+    projectionDeviceBound: binding.deviceBound,
   };
 }
 
@@ -46,16 +50,29 @@ export function requirePhoneProfile(
   leg: SsoScanLeg,
   failureReturnUrl: string
 ): { ok: true } | { ok: false; status: 403; body: Record<string, unknown> } {
-  return profile.isPhone
-    ? { ok: true }
-    : {
-        ok: false,
-        status: 403,
-        body: {
-          error: 'sso_requires_phone',
-          leg,
-          message: 'SSO is only available from phone-classified Argus scans.',
-          failureReturnUrl,
-        },
-      };
+  if (!profile.isPhone) {
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: 'sso_requires_phone',
+        leg,
+        message: 'SSO is only available from phone-classified Argus scans.',
+        failureReturnUrl,
+      },
+    };
+  }
+  if (!profile.projectionDeviceBound) {
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: 'sso_projection_device_unbound',
+        leg,
+        message: 'The Argus scan does not match the device completing this SSO leg.',
+        failureReturnUrl,
+      },
+    };
+  }
+  return { ok: true };
 }

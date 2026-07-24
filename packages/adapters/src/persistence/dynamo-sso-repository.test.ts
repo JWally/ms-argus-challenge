@@ -23,6 +23,7 @@ const session: SsoSession = {
     isProxy: false,
     isDatacenter: false,
     isVpn: false,
+    projectionDeviceBound: true,
   },
   verdict: 'pending',
   expiresAt: 1_900_000_300,

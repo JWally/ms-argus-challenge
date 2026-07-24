@@ -15,6 +15,8 @@ const attestation: AttestationInput = {
 };
 const phoneProjection = merchantProjection({
   identification: {
+    crypto_device_id: '43a46f1d08',
+    crypto_verified: true,
     browserDetails: {
       browserName: 'Mobile Safari',
       browserVersion: '26',
@@ -36,6 +38,7 @@ const startProfile = {
   isProxy: false,
   isDatacenter: false,
   isVpn: false,
+  projectionDeviceBound: true,
 };
 
 function session(overrides: Partial<SsoSession> = {}): SsoSession {

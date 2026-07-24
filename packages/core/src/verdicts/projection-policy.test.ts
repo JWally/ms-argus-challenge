@@ -33,6 +33,8 @@ describe('projection classification and verdict policy', () => {
   it('classifies phones from browser details and user agent', () => {
     const projection = merchantProjection({
       identification: {
+        crypto_device_id: null,
+        crypto_verified: null,
         browserDetails: {
           browserName: 'Chrome',
           browserVersion: '150',

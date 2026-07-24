@@ -1,7 +1,6 @@
 export * from './crypto/websocket-crypto.js';
 export * from './crypto/attestation-verifier.js';
 export * from './crypto/device-trust.js';
-export * from './http/worker-integrity.js';
 export * from './persistence/dynamo-session-repository.js';
 export * from './persistence/dynamo-attestation-repository.js';
 export * from './persistence/dynamo-single-use-store.js';

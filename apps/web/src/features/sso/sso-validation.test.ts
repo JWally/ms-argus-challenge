@@ -26,7 +26,6 @@ function setup(overrides: Partial<SsoValidationDependencies> = {}) {
     validate: vi.fn().mockResolvedValue(approved),
     loadTrust: vi.fn().mockReturnValue(null),
     clearTrust: vi.fn(),
-    hasPasskeyHint: vi.fn().mockReturnValue(true),
     clearPasskeyHint: vi.fn(),
     authenticatePasskey: vi.fn().mockResolvedValue({ id: 'existing-passkey' }),
     createPasskey: vi.fn().mockResolvedValue({ id: 'new-passkey' }),
@@ -66,7 +65,7 @@ describe('SSO browser assurance transitions', () => {
         { ...state, cpi: 'argus_cpi_test_Example12345.forceauth', freshProofRequired: true },
         'return-code'
       )
-    ).resolves.toEqual({ kind: 'proof-required', passkeySeen: true });
+    ).resolves.toEqual({ kind: 'proof-required' });
     expect(dependencies.loadTrust).not.toHaveBeenCalled();
     expect(dependencies.validate).not.toHaveBeenCalled();
   });
@@ -79,7 +78,6 @@ describe('SSO browser assurance transitions', () => {
 
     await expect(service.validateInitial(state, 'return-code')).resolves.toEqual({
       kind: 'proof-required',
-      passkeySeen: true,
     });
     expect(dependencies.clearTrust).toHaveBeenCalledOnce();
   });

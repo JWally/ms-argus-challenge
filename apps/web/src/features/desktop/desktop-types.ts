@@ -22,7 +22,7 @@ export interface DesktopController {
   expiresAt: number;
   qr: RenderedQrFrames;
   result: Promise<DesktopVerdict>;
-  verdictToken(): Promise<string | null>;
+  verdictToken(): Promise<string>;
   stop(): void;
 }
 

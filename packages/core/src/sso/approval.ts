@@ -1,8 +1,7 @@
-import { timingSafeEqual } from 'node:crypto';
 import { MERCHANT_CHALLENGE_PATTERN } from '@argus-challenge/contracts';
 import { parseScopedCpi } from '../assurance/scoped-cpi.js';
 import type { ApplicationResponse } from '../http/application-response.js';
-import { hashApprovalToken } from './token-hash.js';
+import { hashApprovalToken, tokenHashesEqual } from './token-hash.js';
 
 const APPROVAL_COOKIE = '__Secure-argus_sso_approval';
 const COOKIE_PATH = '/api/sso/approval/redeem';
@@ -82,9 +81,7 @@ export function checkApproval(
   if (state.verdict !== 'approved') return 'not_approved';
   if (state.approvalRedeemedAt) return 'consumed';
   if (!state.approvalTokenHash) return 'missing';
-  const expected = Buffer.from(state.approvalTokenHash, 'hex');
-  const actual = Buffer.from(hashApprovalToken(token), 'hex');
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+  if (!tokenHashesEqual(state.approvalTokenHash, hashApprovalToken(token))) {
     return 'invalid';
   }
   if (!state.cpi) return 'cpi_missing';

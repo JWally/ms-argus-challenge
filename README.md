@@ -13,7 +13,7 @@ through an explicit adapter.
 The parallel `dev-jw` stack is live at
 [`challenge-dev-jw.argus.pw`](https://challenge-dev-jw.argus.pw). Its deployment
 gate exercises CloudFront/S3, the HTTP API, DynamoDB, both authenticated
-WebSocket roles and relay, worker integrity, encrypted QR delivery, and the
+WebSocket roles and relay, QR worker delivery, encrypted QR delivery, and the
 loader in a real Chromium browser.
 
 No Pair domain or Games consumer points at Challenge. Cutover remains blocked
@@ -32,6 +32,23 @@ and rollback rehearsal; see [the compatibility matrix](docs/compatibility.md).
 
 See [Architecture](docs/architecture.md), [Test plan](docs/test-plan.md), and
 [Operations](docs/operations.md).
+
+## Browser result contract
+
+The embed callback receives only:
+
+```ts
+{
+  sessionId: string;
+  token: string;
+}
+```
+
+The callback is a delivery notification, not an authorization decision. Send
+the token to the merchant backend, call `POST /api/verify` with the exact
+scoped CPI and backend-generated challenge ID, and gate only when the response
+contains `passed: true`. Challenge never posts its client-decrypted verdict or
+reason across the iframe boundary.
 
 ## Commands
 

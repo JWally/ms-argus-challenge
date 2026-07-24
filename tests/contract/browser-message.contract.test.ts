@@ -14,8 +14,6 @@ describe('loader message contract', () => {
             source: 'argus-captcha',
             event: 'result',
             sessionId: 'session-1',
-            verdict: 'paired',
-            reason: null,
             token: 'signed-token',
           },
         },
@@ -27,18 +25,34 @@ describe('loader message contract', () => {
         source: 'argus-captcha',
         event: 'result',
         sessionId: 'session-1',
-        verdict: 'paired',
-        reason: null,
         token: 'signed-token',
       },
       result: {
         sessionId: 'session-1',
-        verdict: 'paired',
-        reason: null,
         token: 'signed-token',
       },
       sizeHeight: null,
     });
+  });
+
+  it.each([undefined, null, ''])('rejects a result without a server token: %s', (token) => {
+    expect(
+      parseCaptchaMessage(
+        {
+          origin: 'https://challenge.example',
+          source,
+          data: {
+            source: 'argus-captcha',
+            event: 'result',
+            sessionId: 'session-1',
+            verdict: 'paired',
+            token,
+          },
+        },
+        'https://challenge.example',
+        source
+      )?.result
+    ).toBeNull();
   });
 
   it.each([

@@ -2,7 +2,6 @@ import {
   authenticateExistingPasskey,
   clearPasskeyHint,
   createNewPasskey,
-  hasPasskeyHint,
   rememberPasskeyCredential,
 } from '../../shared/passkeys.js';
 import { clearDeviceTrust, loadDeviceTrust } from '../../shared/device-trust.js';
@@ -19,12 +18,10 @@ import type { SsoBrowserState } from './sso-state.js';
 export type SsoProofChoice = 'passkey-create' | 'passkey-auth' | 'google';
 
 type InitialOutcome =
-  | { kind: 'validated'; result: SsoValidateResponse; passkeySeen: boolean }
-  | { kind: 'proof-required'; passkeySeen: boolean };
+  { kind: 'validated'; result: SsoValidateResponse } | { kind: 'proof-required' };
 
 type ProofOutcome =
-  | { kind: 'validated'; result: SsoValidateResponse; passkeySeen: boolean }
-  | { kind: 'proof-error'; error: string; passkeySeen: boolean };
+  { kind: 'validated'; result: SsoValidateResponse } | { kind: 'proof-error'; error: string };
 
 export interface SsoValidationDependencies {
   validate(
@@ -34,7 +31,6 @@ export interface SsoValidationDependencies {
   ): Promise<SsoValidateResponse>;
   loadTrust(): string | null;
   clearTrust(): void;
-  hasPasskeyHint(): boolean;
   clearPasskeyHint(): void;
   authenticatePasskey(nonce: string): Promise<unknown>;
   createPasskey(nonce: string): Promise<unknown>;
@@ -42,36 +38,29 @@ export interface SsoValidationDependencies {
   googleProof(nonce: string): Promise<GoogleProofOutcome>;
 }
 
-function passkeySeen(dependencies: SsoValidationDependencies): boolean {
-  return dependencies.hasPasskeyHint();
-}
-
 async function validateInitial(
   dependencies: SsoValidationDependencies,
   state: SsoBrowserState,
   returnCode: string
 ): Promise<InitialOutcome> {
-  const seen = passkeySeen(dependencies);
   if (!state.proofRequired) {
     return {
       kind: 'validated',
       result: await dependencies.validate(state, returnCode, {}),
-      passkeySeen: seen,
     };
   }
-  if (state.freshProofRequired) return { kind: 'proof-required', passkeySeen: seen };
+  if (state.freshProofRequired) return { kind: 'proof-required' };
   const trust = dependencies.loadTrust();
-  if (!trust) return { kind: 'proof-required', passkeySeen: seen };
+  if (!trust) return { kind: 'proof-required' };
   try {
     return {
       kind: 'validated',
       result: await dependencies.validate(state, returnCode, { deviceTrustToken: trust }),
-      passkeySeen: seen,
     };
   } catch (error) {
     if (!(error instanceof HttpError && error.status === 401)) throw error;
     dependencies.clearTrust();
-    return { kind: 'proof-required', passkeySeen: passkeySeen(dependencies) };
+    return { kind: 'proof-required' };
   }
 }
 
@@ -122,13 +111,12 @@ async function validateProof(
     if (result.verdict === 'approved' && proof.newPasskey) {
       dependencies.rememberPasskey(proof.newPasskey);
     }
-    return { kind: 'validated', result, passkeySeen: passkeySeen(dependencies) };
+    return { kind: 'validated', result };
   } catch (error) {
     if (choice === 'passkey-auth') dependencies.clearPasskeyHint();
     return {
       kind: 'proof-error',
       error: proofError(error),
-      passkeySeen: passkeySeen(dependencies),
     };
   }
 }
@@ -146,7 +134,6 @@ export const browserSsoValidation = createSsoValidationService({
   validate: submitSsoValidation,
   loadTrust: loadDeviceTrust,
   clearTrust: clearDeviceTrust,
-  hasPasskeyHint,
   clearPasskeyHint,
   authenticatePasskey: authenticateExistingPasskey,
   createPasskey: createNewPasskey,

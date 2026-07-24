@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { createWorkerIntegrityVerifier } from '@argus-challenge/adapters';
 import { createServerQrRendererPrimer, sealPairTokenQr } from '@argus-challenge/adapters/qr';
 import {
   INDIVIDUAL_SCORE_LIMIT,
@@ -162,10 +161,6 @@ function phoneAttestation(runtime: SharedRuntime) {
 export function createPairRuntime(runtime: SharedRuntime) {
   const authenticate = (event: unknown, sessionId: string) =>
     authenticateParticipant(runtime, event, sessionId);
-  const workerIntegrity = createWorkerIntegrityVerifier({
-    allowedOrigins: runtime.config.allowedOrigins,
-    fetch,
-  });
   const primeQrRenderer = createServerQrRendererPrimer(runtime.config.publicOrigin);
   const sealQr = (input: Parameters<typeof sealPairTokenQr>[0]) =>
     sealPairTokenQr(input, {
@@ -184,7 +179,6 @@ export function createPairRuntime(runtime: SharedRuntime) {
     mintPairToken: createPairTokenMintHandler({
       authenticateParticipant: authenticate,
       loadSession: runtime.sessions.load,
-      verifyWorkerIntegrity: workerIntegrity,
       mintToken: (blob) => mintPairToken(runtime.singleUseTokens, blob),
       sealQr: async (input) => ({ ...(await sealQr(input)) }),
       pairOrigin: runtime.config.publicOrigin,

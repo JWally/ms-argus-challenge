@@ -23,7 +23,6 @@ interface ValidationView {
   error: string | null;
   needsProof: boolean;
   validating: boolean;
-  passkeySeen: boolean;
 }
 
 type SetValidationView = Dispatch<SetStateAction<ValidationView>>;
@@ -49,7 +48,6 @@ function useInitialValidation(
             error: null,
             needsProof: true,
             validating: false,
-            passkeySeen: outcome.passkeySeen,
           });
       })
       .catch((cause: unknown) => {
@@ -81,7 +79,6 @@ async function runProof(
       error: 'That verification did not complete. Try another option.',
       needsProof: true,
       validating: false,
-      passkeySeen: outcome.passkeySeen,
     });
 }
 
@@ -114,7 +111,6 @@ function useValidationController() {
     error: null,
     needsProof: false,
     validating: Boolean(state && returnCode),
-    passkeySeen: false,
   });
   const finish = useCallback(
     (result: SsoValidateResponse) => {
@@ -142,7 +138,6 @@ function ValidationAction({
     return (
       <SsoProofActions
         busy={view.validating}
-        passkeySeen={view.passkeySeen}
         googleConfigured={isGoogleConfigured}
         onChoose={prove}
       />

@@ -8,8 +8,6 @@ const body = {
   pt: 'phone-token',
   n: 'pair-nonce',
   cPub: 'client-public-key',
-  workerUrl: 'https://challenge.example/qr-worker.js',
-  workerSha256: `sha256-${'A'.repeat(43)}`,
   debug: true,
 };
 
@@ -17,7 +15,6 @@ function dependencies(overrides: Partial<PairTokenMintDependencies> = {}) {
   return {
     authenticateParticipant: vi.fn().mockResolvedValue(true),
     loadSession: vi.fn().mockResolvedValue({ proofRequired: true, freshProofRequired: false }),
-    verifyWorkerIntegrity: vi.fn().mockResolvedValue({ ok: true }),
     mintToken: vi.fn().mockResolvedValue('one-time-token'),
     sealQr: vi.fn().mockResolvedValue({ kind: 'png-frames', enc: 'sealed' }),
     pairOrigin: 'https://challenge.example',
@@ -37,23 +34,11 @@ describe('pair-token mint route', () => {
     expect(deps.loadSession).not.toHaveBeenCalled();
   });
 
-  it('rejects missing blobs and untrusted worker bytes', async () => {
+  it('rejects an incomplete pair blob', async () => {
     const deps = dependencies();
     await expect(createPairTokenMintHandler(deps)({}, SESSION_ID, {})).resolves.toEqual({
       status: 400,
       body: { error: 'invalid_pair_blob' },
-    });
-    const compromised = dependencies({
-      verifyWorkerIntegrity: vi.fn().mockResolvedValue({
-        ok: false,
-        status: 400,
-        error: 'worker_integrity_invalid',
-        reason: 'hash_mismatch',
-      }),
-    });
-    await expect(createPairTokenMintHandler(compromised)({}, SESSION_ID, body)).resolves.toEqual({
-      status: 400,
-      body: { error: 'worker_integrity_invalid', reason: 'hash_mismatch' },
     });
   });
 

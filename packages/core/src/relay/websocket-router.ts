@@ -54,7 +54,7 @@ export interface WebSocketRouterDependencies {
 
 type ActionBody = { action?: string } & Record<string, unknown>;
 
-const ENVELOPE_MAX_AGE_SECONDS = 60 * 60;
+const ENVELOPE_MAX_AGE_SECONDS = 5 * 60;
 const VERDICT_MARKER_TTL_SECONDS = 6 * 60;
 
 function ok(): WebSocketResponse {
@@ -64,6 +64,15 @@ function ok(): WebSocketResponse {
 function bad(dependencies: WebSocketRouterDependencies, reason: string): WebSocketResponse {
   dependencies.logInfo(`[challenge-ws] rejected: ${reason}`);
   return { statusCode: 400, body: reason };
+}
+
+function forbidden(dependencies: WebSocketRouterDependencies, reason: string): WebSocketResponse {
+  dependencies.logInfo(`[challenge-ws] rejected: ${reason}`);
+  return { statusCode: 403, body: reason };
+}
+
+function requestOrigin(event: WebSocketEvent): string | null {
+  return event.headers?.origin ?? event.headers?.Origin ?? null;
 }
 
 function parseBody(event: WebSocketEvent): ActionBody | null {
@@ -88,6 +97,10 @@ async function identify(
   if (!claims) return bad(dependencies, 'invalid_token');
   const origin = typeof body.origin === 'string' ? body.origin : '';
   if (!dependencies.allowedOrigins.has(origin)) return bad(dependencies, 'origin_not_allowed');
+  const handshakeOrigin = requestOrigin(event);
+  if (handshakeOrigin && handshakeOrigin !== origin) {
+    return bad(dependencies, 'origin_mismatch');
+  }
   const connectionId = event.requestContext.connectionId;
   if (!(await dependencies.claimRoleConnection(claims, connectionId))) {
     return bad(dependencies, 'role_already_connected');
@@ -204,7 +217,12 @@ async function relay(
 export function createWebSocketRouter(dependencies: WebSocketRouterDependencies) {
   return async (event: WebSocketEvent): Promise<WebSocketResponse> => {
     const { routeKey, connectionId } = event.requestContext;
-    if (routeKey === '$connect') return ok();
+    if (routeKey === '$connect') {
+      const origin = requestOrigin(event);
+      return origin && !dependencies.allowedOrigins.has(origin)
+        ? forbidden(dependencies, 'origin_not_allowed')
+        : ok();
+    }
     if (routeKey === '$disconnect') {
       await dependencies.releaseRoleConnection(connectionId);
       return ok();

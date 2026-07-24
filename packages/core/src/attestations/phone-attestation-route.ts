@@ -177,6 +177,8 @@ async function collectDecision(
       phoneProjection,
       desktopScan: desktop.desktopScan,
       phoneScan: phoneProjection ? classifyProjection(phoneProjection) : null,
+      desktopPublicKey: prepared.session.desktopAttestation.publicKey,
+      phonePublicKey: prepared.attestation.publicKey,
       hostAnnotations: desktop.annotations,
     },
     dependencies.nowEpochSeconds() * 1000
