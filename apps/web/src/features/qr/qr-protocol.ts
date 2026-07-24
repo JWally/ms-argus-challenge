@@ -1,7 +1,5 @@
 export interface WorkerKeyMaterial {
   clientPublicKey: string;
-  workerUrl: string;
-  workerSha256: string;
 }
 
 export interface RenderedQrFrames {
@@ -17,19 +15,10 @@ function record(value: unknown): Record<string, unknown> | null {
 
 export function readKeyMaterial(value: unknown): WorkerKeyMaterial | null {
   const message = record(value);
-  if (
-    message?.type !== 'key' ||
-    typeof message.clientPublicKey !== 'string' ||
-    typeof message.workerUrl !== 'string' ||
-    typeof message.workerSha256 !== 'string'
-  ) {
+  if (message?.type !== 'key' || typeof message.clientPublicKey !== 'string') {
     return null;
   }
-  return {
-    clientPublicKey: message.clientPublicKey,
-    workerUrl: message.workerUrl,
-    workerSha256: message.workerSha256,
-  };
+  return { clientPublicKey: message.clientPublicKey };
 }
 
 export function readRenderedFrames(value: unknown): RenderedQrFrames | null {

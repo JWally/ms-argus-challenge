@@ -7,29 +7,14 @@ interface PairTokenMintBody {
   pt: string;
   n: string;
   cPub: string;
-  workerUrl: string;
-  workerSha256: string;
   debug: boolean;
 }
-
-type WorkerIntegrityResult =
-  | { ok: true }
-  | {
-      ok: false;
-      status: 400;
-      error: 'worker_integrity_invalid';
-      reason: string;
-    };
 
 export interface PairTokenMintDependencies {
   authenticateParticipant(event: unknown, sessionId: string): Promise<boolean>;
   loadSession(
     sessionId: string
   ): Promise<{ proofRequired?: boolean; freshProofRequired?: boolean } | null>;
-  verifyWorkerIntegrity(input: {
-    workerUrl: string;
-    workerSha256: string;
-  }): Promise<WorkerIntegrityResult>;
   mintToken(blob: PairBlob): Promise<string>;
   sealQr(input: {
     pairOrigin: string;
@@ -46,15 +31,7 @@ export interface PairTokenMintDependencies {
 type Response = ApplicationResponse<Record<string, unknown>>;
 
 function parseBody(body: Record<string, unknown>): PairTokenMintBody | null {
-  const required = [
-    body.wsUrl,
-    body.e,
-    body.pt,
-    body.n,
-    body.cPub,
-    body.workerUrl,
-    body.workerSha256,
-  ];
+  const required = [body.wsUrl, body.e, body.pt, body.n, body.cPub];
   if (!required.every((value) => typeof value === 'string')) return null;
   return {
     wsUrl: body.wsUrl as string,
@@ -62,8 +39,6 @@ function parseBody(body: Record<string, unknown>): PairTokenMintBody | null {
     pt: body.pt as string,
     n: body.n as string,
     cPub: body.cPub as string,
-    workerUrl: body.workerUrl as string,
-    workerSha256: body.workerSha256 as string,
     debug: body.debug === true,
   };
 }
@@ -81,13 +56,6 @@ export function createPairTokenMintHandler(dependencies: PairTokenMintDependenci
     if (!parsed) return { status: 400, body: { error: 'invalid_pair_blob' } };
     const session = await dependencies.loadSession(sessionId);
     if (!session) return { status: 404, body: { error: 'session_not_found' } };
-    const integrity = await dependencies.verifyWorkerIntegrity(parsed);
-    if (!integrity.ok) {
-      return {
-        status: integrity.status,
-        body: { error: integrity.error, reason: integrity.reason },
-      };
-    }
     const token = await dependencies.mintToken({
       sessionId,
       wsUrl: parsed.wsUrl,

@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import {
   deriveAesKey,
   exportPublicKey,
@@ -166,12 +165,9 @@ describe('deployed challenge stack', () => {
     });
   });
 
-  it('checks the deployed worker and returns decryptable QR frames', async () => {
+  it('returns client-decryptable QR frames without trusting worker claims', async () => {
     const session = await startSession();
     const desktop = await identify(session.ws.desktopToken);
-    const workerUrl = `${baseUrl}/qr-worker.js`;
-    const workerBytes = Buffer.from(await (await fetch(workerUrl)).arrayBuffer());
-    const workerSha256 = `sha256-${createHash('sha256').update(workerBytes).digest('base64url')}`;
     const client = await generateKeyPair();
     const cPub = await exportPublicKey(client.publicKey);
     const result = await json(
@@ -184,8 +180,6 @@ describe('deployed challenge stack', () => {
           pt: session.ws.phoneToken,
           n: session.nonce,
           cPub,
-          workerUrl,
-          workerSha256,
           debug: false,
         }),
       }

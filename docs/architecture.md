@@ -73,5 +73,9 @@ pages.
   signed that Challenge attestation. A clean projection from a different
   device therefore fails before a paired verdict or SSO approval is minted.
 - Pair-token redemption and SSO approval exchange are single-use.
+- The QR worker isolates ephemeral key handling and frame decoding for the
+  browser experience. Its bytes and the visible pair bundle are not server
+  authority; authenticated server state and signed verdicts remain the trust
+  boundary.
 - Missing projection, binding, proof, or signing material fails closed.
 - Polling can recover delivery but cannot bypass WebSocket authentication.

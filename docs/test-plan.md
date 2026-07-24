@@ -29,6 +29,8 @@
 - WebSocket identity rejects a declared origin that contradicts the handshake
   origin, and sealed connection envelopes expire with the five-minute session.
 - Session creation fails closed when the rate-limit store is unavailable.
+- Pair-token minting authenticates the desktop and requires the ephemeral QR
+  public key without treating client-reported worker bytes as authorization.
 - SSO return-code and approval-token hashes use one constant-time comparison
   primitive and reject malformed digest lengths.
 - Pair and all three SSO legs fail closed unless their current, verified API
@@ -121,7 +123,7 @@ Cutover backlog:
 - Malformed and cross-origin HTTP requests fail closed.
 - Real HTTP API, DynamoDB, Secrets Manager, and both WebSocket identities.
 - Authenticated phone-to-desktop relay through API Gateway.
-- Deployed worker SHA verification and client-decryptable ECDH QR frames.
+- Deployed worker delivery and client-decryptable ECDH QR frames.
 
 ## QR latency and warmup
 

@@ -13,7 +13,7 @@ through an explicit adapter.
 The parallel `dev-jw` stack is live at
 [`challenge-dev-jw.argus.pw`](https://challenge-dev-jw.argus.pw). Its deployment
 gate exercises CloudFront/S3, the HTTP API, DynamoDB, both authenticated
-WebSocket roles and relay, worker integrity, encrypted QR delivery, and the
+WebSocket roles and relay, QR worker delivery, encrypted QR delivery, and the
 loader in a real Chromium browser.
 
 No Pair domain or Games consumer points at Challenge. Cutover remains blocked

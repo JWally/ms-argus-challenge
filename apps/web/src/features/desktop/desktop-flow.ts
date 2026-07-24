@@ -58,8 +58,6 @@ async function mintQr(session: SessionStart, connection: RelayConnection, keyhol
         pt: session.ws.phoneToken,
         n: session.nonce,
         cPub: key.clientPublicKey,
-        workerUrl: key.workerUrl,
-        workerSha256: key.workerSha256,
         debug: new URLSearchParams(window.location.search).get('debug') === 'true',
       }),
     }

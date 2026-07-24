@@ -74,7 +74,8 @@ retired.
 - [ ] desktop and phone projection claims
 - [ ] verified projection-to-attestation key continuity on Pair and every SSO leg
 - [ ] proof-of-life, passkey, device trust, and OAuth assurance
-- [ ] host preflight and worker-integrity enforcement
+- [ ] server-owned merchant host and minimum-assurance policy
+- [ ] QR worker delivery and encrypted frame decoding without client authority
 - [ ] SSO return-origin allowlist and single-use approval exchange
 - [ ] rate limits, replay rejection, expiry, CORS, and response headers
 
