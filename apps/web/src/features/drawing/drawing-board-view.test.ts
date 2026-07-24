@@ -53,7 +53,10 @@ describe('phone drawing-board presentation', () => {
     expect(markup).toContain('PAIR');
     expect(markup).toContain('Handwriting Biometric Captcha');
     expect(markup).toContain('bio-draw-dot-canvas');
-    expect(markup).toContain('Draw the Character You See Above');
+    expect(markup).toContain('Draw the Letter Here');
+    expect(markup).toContain('class="drawing-touch-cue"');
+    expect(markup).toContain('class="drawing-hint-text"');
+    expect(markup).not.toContain('CLICK HERE TO START');
     expect(markup).toContain('Drawing 1 of 3');
     expect(markup.match(/<button/g)).toHaveLength(2);
     expect(markup).toContain('class="button drawing-submit"');
@@ -85,6 +88,22 @@ describe('phone drawing-board presentation', () => {
     expect(colorToken('draw-next-disabled-fg')).toBe('#ffffff');
     expect(phoneStyles).toMatch(
       /\.drawing-actions \.drawing-submit:disabled \{[^}]*background: transparent;/s
+    );
+  });
+
+  it('uses a neutral touch cue and lets the drawing surface fill the available phone space', () => {
+    expect(phoneStyles).toContain('@keyframes drawing-touch-ring');
+    expect(phoneStyles).toMatch(
+      /\.drawing-surface \{[^}]*min-height: clamp\(12rem, 30dvh, 16rem\);[^}]*flex: 1;/s
+    );
+    expect(phoneStyles).toMatch(
+      /\.drawing-surface canvas \{[^}]*position: absolute;[^}]*inset: 0;/s
+    );
+    expect(phoneStyles).toMatch(/\.drawing-hint \{[^}]*display: grid;[^}]*place-items: center;/s);
+    expect(phoneStyles).toMatch(/\.drawing-touch-cue \{[^}]*grid-area: 1 \/ 1;/s);
+    expect(phoneStyles).toMatch(/\.drawing-actions \{[^}]*position: sticky;[^}]*bottom: 0;/s);
+    expect(phoneStyles).toMatch(
+      /\.bio-draw-challenge \{[^}]*border: 1px solid var\(--draw-border\);/s
     );
   });
 });

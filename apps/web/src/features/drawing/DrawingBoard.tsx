@@ -60,8 +60,8 @@ export function DrawingBoard({ nonce, disabled = false, onComplete }: DrawingBoa
           />
           {shouldShowDrawingInstructions(index, drawing.hasStarted) && (
             <span className="drawing-hint">
-              Draw the Character You See Above
-              <small>-- CLICK HERE TO START --</small>
+              <span className="drawing-touch-cue" aria-hidden="true" />
+              <span className="drawing-hint-text">Draw the Letter Here</span>
             </span>
           )}
         </div>

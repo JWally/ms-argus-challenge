@@ -6,7 +6,8 @@ const QR_SCALE = 16;
 const QUIET_MODULES = 2;
 const POISON_RATIO = 0.18;
 const FRAME_MS = 180;
-const WRONG_RATES = [0.005, 0.2, 0.01, 0.25] as const;
+// Alternate scan-friendly frames with independently seeded high-noise frames.
+export const QR_FRAME_CORRUPTION_RATES = [0.005, 0.15, 0.01, 0.15] as const;
 
 interface QrModules {
   size: number;
@@ -205,7 +206,7 @@ export function createPairQrRenderer(
     }).modules;
     const createMs = dependencies.nowMilliseconds() - createStartedAt;
     const rendered = await Promise.all(
-      WRONG_RATES.map((rate, index) =>
+      QR_FRAME_CORRUPTION_RATES.map((rate, index) =>
         renderFrame(modules, rate, `${token}:${index}`, dependencies)
       )
     );

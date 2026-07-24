@@ -1,8 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { createPairQrRenderer, renderPairQrFrames } from './server-qr-renderer.js';
+import {
+  createPairQrRenderer,
+  QR_FRAME_CORRUPTION_RATES,
+  renderPairQrFrames,
+} from './server-qr-renderer.js';
 
 describe('server QR renderer', () => {
+  it('uses independent 15% corruption masks for both high-noise frames', async () => {
+    expect(QR_FRAME_CORRUPTION_RATES).toEqual([0.005, 0.15, 0.01, 0.15]);
+
+    const result = await renderPairQrFrames('https://challenge.example', 'single-use-token');
+
+    expect(Buffer.from(result.frames[1] ?? []).equals(Buffer.from(result.frames[3] ?? []))).toBe(
+      false
+    );
+  });
+
   it('renders a deterministic animated PNG bundle with stable dimensions', async () => {
     const result = await renderPairQrFrames(
       'https://challenge.example',
