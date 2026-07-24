@@ -159,7 +159,7 @@
   max-height: min(13.5rem, 26dvh);
   place-items: center;
   overflow: hidden;
-  border: 1px solid rgb(255 47 179 / 0.22);
+  border: 1px solid var(--draw-border);
   border-radius: 8px;
   aspect-ratio: 5 / 3;
   background: #050505;
@@ -186,17 +186,17 @@
 
 .drawing-surface {
   position: relative;
-  display: flex;
+  display: block;
   width: var(--canvas-size);
-  min-height: 8rem;
-  max-height: calc(var(--canvas-size) * 0.75);
+  min-height: clamp(12rem, 30dvh, 16rem);
+  max-height: min(22rem, 44dvh);
   flex: 1;
-  align-items: center;
-  flex-direction: column;
   margin-top: 0.5rem;
 }
 
 .drawing-surface canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -214,32 +214,59 @@
 .drawing-hint {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 1.25rem;
+  display: grid;
+  place-items: center;
   color: var(--draw-text);
   font-size: clamp(1.3rem, 4vw, 2.3rem);
   font-weight: 300;
   pointer-events: none;
 }
 
-.drawing-hint small {
-  color: var(--draw-green);
-  font-family: var(--mono);
-  font-size: clamp(0.75rem, 2.5vw, 1.05rem);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  animation: draw-throb 1.5s ease-in-out infinite;
+.drawing-touch-cue {
+  position: relative;
+  display: block;
+  grid-area: 1 / 1;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.65);
+  box-shadow: 0 0 18px rgb(255 255 255 / 0.3);
+}
+
+.drawing-touch-cue::before,
+.drawing-touch-cue::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgb(255 255 255 / 0.7);
+  border-radius: 50%;
+  content: '';
+  animation: drawing-touch-ring 1.8s ease-out infinite;
+}
+
+.drawing-touch-cue::after {
+  animation-delay: 600ms;
+}
+
+.drawing-hint-text {
+  grid-area: 1 / 1;
+  transform: translateY(3.25rem);
+  white-space: nowrap;
 }
 
 .drawing-actions {
+  position: sticky;
+  z-index: 2;
+  bottom: 0;
   display: flex;
   width: var(--canvas-size);
   flex-direction: column;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  background: linear-gradient(to bottom, transparent, var(--draw-bg) 0.75rem);
 }
 
 .drawing-actions .button {
@@ -295,9 +322,14 @@
   }
 }
 
-@keyframes draw-throb {
-  50% {
-    opacity: 0.5;
-    text-shadow: 0 0 20px rgb(34 197 94 / 0.6);
+@keyframes drawing-touch-ring {
+  0% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4);
   }
 }

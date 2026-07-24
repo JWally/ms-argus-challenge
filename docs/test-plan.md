@@ -129,6 +129,8 @@ Cutover backlog:
 
 - Adapter tests preserve the four-frame encrypted PNG contract while proving
   that native PNG encodes are dispatched concurrently.
+- The two high-noise frames each corrupt 15% of eligible modules using
+  independent deterministic masks; the low-noise frames remain at 0.5% and 1%.
 - Primer tests prove the expensive renderer refresh is rate-limited per Lambda
   execution environment, shares concurrent attempts, and retries after failure.
 - HTTP entrypoint tests prove synthetic heater events warm dependencies without
