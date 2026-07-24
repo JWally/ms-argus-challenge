@@ -31,7 +31,7 @@ const sourceDirectory = dirname(fileURLToPath(import.meta.url));
 // from a blob URL so the worker inherits the merchant page's origin and cookies.
 const WORKER_CONTENT_SECURITY_POLICY = "worker-src 'self' blob:";
 
-function responseHeaders(scope: Construct) {
+export function createSiteResponseHeaders(scope: Construct) {
   const shared = {
     strictTransportSecurity: {
       accessControlMaxAge: Duration.days(365),
@@ -97,7 +97,7 @@ function createDistribution(input: SiteInput, bucket: IBucket): Distribution {
     domainName: input.domainName,
     validation: CertificateValidation.fromDns(input.zone),
   });
-  const headers = responseHeaders(input.scope);
+  const headers = createSiteResponseHeaders(input.scope);
   const origin = S3BucketOrigin.withOriginAccessControl(bucket);
   const router = new CloudFrontFunction(input.scope, 'SpaRouter', {
     code: FunctionCode.fromFile({ filePath: join(sourceDirectory, '../cloudfront/spa-router.js') }),

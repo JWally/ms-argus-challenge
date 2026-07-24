@@ -1,8 +1,7 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
-import { HostedZone } from 'aws-cdk-lib/aws-route53';
 import { describe, expect, it } from 'vitest';
-import { createSite } from './site.js';
+import { createSiteResponseHeaders } from './site.js';
 
 describe('Challenge site security headers', () => {
   it('allows required same-origin and blob workers on site and embed routes', () => {
@@ -10,16 +9,7 @@ describe('Challenge site security headers', () => {
     const stack = new Stack(app, 'SiteHeadersTest', {
       env: { account: '123456789012', region: 'us-east-1' },
     });
-    const zone = HostedZone.fromHostedZoneAttributes(stack, 'HostedZone', {
-      hostedZoneId: 'Z0123456789',
-      zoneName: 'example.test',
-    });
-    createSite({
-      scope: stack,
-      zone,
-      domainName: 'challenge.example.test',
-      apiDomainName: 'api.example.test',
-    });
+    createSiteResponseHeaders(stack);
 
     const policies = Template.fromStack(stack).findResources(
       'AWS::CloudFront::ResponseHeadersPolicy'
