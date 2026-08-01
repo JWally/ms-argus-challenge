@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "prepare": "lefthook install",
+    "audit": "tsx scripts/audit-policy.mts",
     "build": "npm run build:packages && npm run build:api && npm run build:web && npm run build:loader",
     "build:packages": "tsc --noEmit",
     "build:api": "node scripts/build-api.mjs",
@@ -37,7 +38,7 @@
     "test:browser": "playwright test",
     "cdk:synth": "npm --workspace @argus-challenge/infrastructure run synth",
     "cdk:diff": "npm --workspace @argus-challenge/infrastructure run diff",
-    "quality": "npm run format:check && npm run lint && npm run spell && npm run boundaries && npm run dead-code && npm run duplication && npm run test:coverage && npm run build && npm run ratchets && npm run cdk:synth",
+    "quality": "npm run audit && npm run format:check && npm run lint && npm run spell && npm run boundaries && npm run dead-code && npm run duplication && npm run test:coverage && npm run build && npm run ratchets && npm run cdk:synth",
     "deploy:dev": "npm run quality && node scripts/deploy-dev.mjs"
   },
   "devDependencies": {
