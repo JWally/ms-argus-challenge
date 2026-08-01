@@ -21,9 +21,19 @@ const pairRoutes = [
   'ANY /api/{proxy+}',
 ] as const;
 
-describe('latest Pair HTTP contract', () => {
-  it('exposes exactly the current route keys without legacy versions', () => {
-    expect(CHALLENGE_HTTP_ROUTES).toEqual(pairRoutes);
+const challengeOnlyRoutes = ['POST /api/session/{id}/drawing-pictures'] as const;
+const challengeOnlyRouteSet = new Set<string>(challengeOnlyRoutes);
+
+describe('latest Pair HTTP contract plus documented Challenge extensions', () => {
+  it('exposes exactly the current route keys without legacy versions or silent drift', () => {
+    expect(CHALLENGE_HTTP_ROUTES.filter((route) => !challengeOnlyRouteSet.has(route))).toEqual(
+      pairRoutes
+    );
+    expect(CHALLENGE_HTTP_ROUTES).toEqual([
+      ...pairRoutes.slice(0, 15),
+      ...challengeOnlyRoutes,
+      ...pairRoutes.slice(15),
+    ]);
     expect(CHALLENGE_HTTP_ROUTES.some((route) => /\/v[12]\//.test(route))).toBe(false);
   });
 });

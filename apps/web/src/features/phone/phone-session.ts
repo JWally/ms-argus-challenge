@@ -1,6 +1,12 @@
 import type { SealedVerdictEnvelope } from '@argus-challenge/contracts/verdicts/fixed-envelope';
 import { DEFAULT_CPI, runAttestedScan, type AttestedScan } from '../../shared/argus.js';
+import { requestJson } from '../../shared/http.js';
 import { connectRelay, type PeerMessage, type RelayConnection } from '../../shared/websocket.js';
+import type {
+  DrawingPictureEncoding,
+  RenderedDrawingPictures,
+} from '../drawing/drawing-picture-protocol.js';
+import { QrKeyholder } from '../qr/qr-keyholder.js';
 import { readPhoneBinding, type PhoneBinding } from './phone-binding.js';
 
 export interface DesktopReady {
@@ -15,15 +21,48 @@ export interface PhoneSession {
   sessionId: string;
   binding: PhoneBinding;
   connection: RelayConnection;
-  ready: DesktopReady;
+  ready: Promise<DesktopReady>;
+  pictures: RenderedDrawingPictures;
   scan: Promise<AttestedScan>;
   revealKey(): Promise<string>;
+}
+
+interface SealedDrawingPicturesResponse {
+  enc: string;
+  sPub: string;
+  kind: 'drawing-pictures';
+  encoding: DrawingPictureEncoding;
+  compression: 'none';
+  width: number;
+  height: number;
+  framesPerPrompt: number;
+  frameMs: number;
+  pictureCount: number;
+}
+
+interface DrawingPictureKeyholder {
+  key(): Promise<{ clientPublicKey: string }>;
+  openDrawingPictures(sealed: SealedDrawingPicturesResponse): Promise<RenderedDrawingPictures>;
+  close(): void;
+}
+
+interface OpenServerDrawingPictureDependencies {
+  keyholder: DrawingPictureKeyholder;
+  request: typeof requestJson;
 }
 
 interface ExpectedReady {
   sessionId: string;
   desktopEnvelope: string;
   nonce: string;
+}
+
+interface StartPhoneSessionDependencies {
+  hash: string;
+  openPictures(sessionId: string, binding: PhoneBinding): Promise<RenderedDrawingPictures>;
+  scan(input: { cpi: string; payload: Record<string, unknown> }): Promise<AttestedScan>;
+  connect(input: { url: string; token: string }): Promise<RelayConnection>;
+  nowMs(): number;
 }
 
 export function readDesktopReady(
@@ -63,6 +102,26 @@ function revealKey(connection: RelayConnection, sessionId: string): Promise<stri
     .then((message) => String((message.data as Record<string, unknown>).revealKey));
 }
 
+async function waitForDesktopReady(input: {
+  connection: RelayConnection;
+  sessionId: string;
+  binding: PhoneBinding;
+  nowMs: () => number;
+}): Promise<DesktopReady> {
+  const expected = {
+    sessionId: input.sessionId,
+    desktopEnvelope: input.binding.desktopEnvelope,
+    nonce: input.binding.nonce,
+  };
+  const message = await input.connection.waitFor(
+    (candidate) => readDesktopReady(candidate, expected) !== null,
+    60_000
+  );
+  const ready = readDesktopReady(message, expected);
+  if (!ready || ready.expiresAt * 1_000 <= input.nowMs()) throw new Error('session_expired');
+  return ready;
+}
+
 export function readPhoneState(value: unknown): SealedVerdictEnvelope | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<SealedVerdictEnvelope>;
@@ -71,41 +130,73 @@ export function readPhoneState(value: unknown): SealedVerdictEnvelope | null {
     : null;
 }
 
-export async function startPhoneSession(sessionId: string): Promise<PhoneSession> {
-  const binding = readPhoneBinding(window.location.hash);
-  const scan = runAttestedScan({
-    cpi: DEFAULT_CPI,
-    payload: { sessionId, nonce: binding.nonce, role: 'phone' },
-  });
-  void scan.catch(() => undefined);
-  const connection = await connectRelay({ url: binding.wsUrl, token: binding.phoneToken });
+export async function openServerDrawingPictures(
+  sessionId: string,
+  binding: PhoneBinding,
+  dependencies: OpenServerDrawingPictureDependencies = {
+    keyholder: new QrKeyholder(),
+    request: requestJson,
+  }
+): Promise<RenderedDrawingPictures> {
+  try {
+    const key = await dependencies.keyholder.key();
+    const sealed = await dependencies.request<SealedDrawingPicturesResponse>(
+      `/api/session/${sessionId}/drawing-pictures`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${binding.phoneToken}` },
+        body: JSON.stringify({ clientPublicKey: key.clientPublicKey }),
+      }
+    );
+    return await dependencies.keyholder.openDrawingPictures(sealed);
+  } finally {
+    dependencies.keyholder.close();
+  }
+}
+
+export async function startPhoneSessionWithDependencies(
+  sessionId: string,
+  dependencies: StartPhoneSessionDependencies
+): Promise<PhoneSession> {
+  const binding = readPhoneBinding(dependencies.hash);
+  const pictures = dependencies.openPictures(sessionId, binding);
+  const connection = await dependencies.connect({ url: binding.wsUrl, token: binding.phoneToken });
   if (connection.role !== 'phone' || connection.sessionId !== sessionId) {
     connection.close();
     throw new Error('phone_session_identity_mismatch');
   }
   const key = revealKey(connection, sessionId);
-  connection.send(binding.desktopEnvelope, { kind: 'phone-here', challenge: true });
-  const message = await connection.waitFor(
-    (candidate) =>
-      readDesktopReady(candidate, {
-        sessionId,
-        desktopEnvelope: binding.desktopEnvelope,
-        nonce: binding.nonce,
-      }) !== null,
-    60_000
-  );
-  const ready = readDesktopReady(message, {
+  const ready = waitForDesktopReady({
+    connection,
     sessionId,
-    desktopEnvelope: binding.desktopEnvelope,
-    nonce: binding.nonce,
+    binding,
+    nowMs: dependencies.nowMs,
   });
-  if (!ready || ready.expiresAt * 1_000 <= Date.now()) throw new Error('session_expired');
+  void ready.catch(() => undefined);
+  connection.send(binding.desktopEnvelope, { kind: 'phone-here', challenge: true });
+  const openedPictures = await pictures;
+  const scan = dependencies.scan({
+    cpi: DEFAULT_CPI,
+    payload: { sessionId, nonce: binding.nonce, role: 'phone' },
+  });
+  void scan.catch(() => undefined);
   return {
     sessionId,
     binding,
     connection,
     ready,
+    pictures: openedPictures,
     scan,
     revealKey: () => key,
   };
+}
+
+export async function startPhoneSession(sessionId: string): Promise<PhoneSession> {
+  return startPhoneSessionWithDependencies(sessionId, {
+    hash: window.location.hash,
+    openPictures: openServerDrawingPictures,
+    scan: runAttestedScan,
+    connect: connectRelay,
+    nowMs: () => Date.now(),
+  });
 }

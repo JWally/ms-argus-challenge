@@ -14,6 +14,7 @@ interface BootstrapTokenIssuer {
 interface Identifiers {
   sessionId(): string;
   nonce(): string;
+  drawingPromptSeed(): string;
 }
 
 interface Clock {
@@ -118,6 +119,7 @@ function parseSession(body: StartBody, dependencies: StartSessionDependencies) {
   const session: ChallengeSession = {
     id: dependencies.ids.sessionId(),
     nonce: dependencies.ids.nonce(),
+    drawingPromptSeed: dependencies.ids.drawingPromptSeed(),
     expiresAt: now + dependencies.sessionTtlSeconds,
     challengeId: validated.challengeId,
     cpi: validated.scopedCpi?.cpi ?? null,

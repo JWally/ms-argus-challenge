@@ -12,6 +12,7 @@
     "baseUrl": ".",
     "paths": {
       "@argus-challenge/adapters": ["packages/adapters/src/index.ts"],
+      "@argus-challenge/adapters/drawing": ["packages/adapters/src/drawing/index.ts"],
       "@argus-challenge/adapters/qr": ["packages/adapters/src/qr/index.ts"],
       "@argus-challenge/contracts": ["packages/contracts/src/index.ts"],
       "@argus-challenge/contracts/*": ["packages/contracts/src/*"],

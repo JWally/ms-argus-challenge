@@ -26,6 +26,7 @@ export const CHALLENGE_ROUTES: readonly RouteDefinition[] = [
   { method: 'POST', path: '/api/sso/telemetry' },
   { method: 'POST', path: '/api/session/{id}/desktop-attest' },
   { method: 'POST', path: '/api/session/{id}/phone-attest' },
+  { method: 'POST', path: '/api/session/{id}/drawing-pictures' },
   { method: 'GET', path: '/api/session/{id}/result' },
   { method: 'ANY', path: '/api/{proxy+}' },
 ];

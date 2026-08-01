@@ -1,5 +1,10 @@
 import { withDeadline } from '../../shared/deadline.js';
 import {
+  readDrawingPictures,
+  type DrawingPictureEncoding,
+  type RenderedDrawingPictures,
+} from '../drawing/drawing-picture-protocol.js';
+import {
   readKeyMaterial,
   readRenderedFrames,
   type RenderedQrFrames,
@@ -11,6 +16,19 @@ interface SealedQrResponse {
   sPub: string;
   kind?: 'png' | 'png-frames';
   compression?: 'none';
+}
+
+interface SealedDrawingPicturesResponse {
+  enc: string;
+  sPub: string;
+  kind: 'drawing-pictures';
+  encoding: DrawingPictureEncoding;
+  compression: 'none';
+  width: number;
+  height: number;
+  framesPerPrompt: number;
+  frameMs: number;
+  pictureCount: number;
 }
 
 function waitForMessage<T>(
@@ -45,6 +63,12 @@ export class QrKeyholder {
   render(sealed: SealedQrResponse): Promise<RenderedQrFrames> {
     const response = waitForMessage(this.worker, readRenderedFrames, 'qr_render');
     this.worker.postMessage({ type: 'render', ...sealed });
+    return response;
+  }
+
+  openDrawingPictures(sealed: SealedDrawingPicturesResponse): Promise<RenderedDrawingPictures> {
+    const response = waitForMessage(this.worker, readDrawingPictures, 'drawing_picture_open');
+    this.worker.postMessage({ type: 'drawing-pictures', ...sealed });
     return response;
   }
 

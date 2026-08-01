@@ -17,6 +17,7 @@ interface NeutralAttestationResponse extends Record<string, unknown> {
 
 function requestBody(
   session: PhoneSession,
+  ready: Awaited<PhoneSession['ready']>,
   scan: Awaited<PhoneSession['scan']>,
   proof: unknown,
   trustToken: string | null
@@ -24,8 +25,8 @@ function requestBody(
   return {
     ...scan,
     desktopEnvelope: session.binding.desktopEnvelope,
-    desktopArgusSessionId: session.ready.desktopArgusSessionId,
-    desktopKeyId: session.ready.desktopKeyId,
+    desktopArgusSessionId: ready.desktopArgusSessionId,
+    desktopKeyId: ready.desktopKeyId,
     ...(trustToken ? { deviceTrustToken: trustToken } : { webauthn: proof }),
   };
 }
@@ -75,13 +76,13 @@ async function freshProof(session: PhoneSession): Promise<unknown> {
 }
 
 export async function submitPhoneChallenge(session: PhoneSession): Promise<'paired' | 'failed'> {
-  const scan = await session.scan;
+  const [scan, ready] = await Promise.all([session.scan, session.ready]);
   const trust = session.binding.freshProofRequired ? null : loadDeviceTrust();
   try {
     const proof = trust ? null : await freshProof(session);
     return await openState(
       session,
-      await postAttestation(session, requestBody(session, scan, proof, trust))
+      await postAttestation(session, requestBody(session, ready, scan, proof, trust))
     );
   } catch (error) {
     if (!trust || !isInvalidTrust(error)) throw error;
@@ -89,7 +90,7 @@ export async function submitPhoneChallenge(session: PhoneSession): Promise<'pair
     const proof = await freshProof(session);
     return openState(
       session,
-      await postAttestation(session, requestBody(session, scan, proof, null))
+      await postAttestation(session, requestBody(session, ready, scan, proof, null))
     );
   }
 }

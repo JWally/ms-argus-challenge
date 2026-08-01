@@ -1,14 +1,11 @@
-import { useMemo, useState } from 'react';
-import { DotLetterPlate } from './DotLetterPlate.js';
-import {
-  drawingChallenge,
-  REQUIRED_DRAWINGS,
-  shouldShowDrawingInstructions,
-} from './drawing-challenge.js';
+import { useState } from 'react';
+import { DrawingPicturePlayer } from './DrawingPicturePlayer.js';
+import { REQUIRED_DRAWINGS, shouldShowDrawingInstructions } from './drawing-challenge.js';
+import type { RenderedDrawingPictures } from './drawing-picture-protocol.js';
 import { useDrawingCanvas } from './use-drawing-canvas.js';
 
 interface DrawingBoardProps {
-  nonce: string;
+  pictures: RenderedDrawingPictures;
   disabled?: boolean;
   onComplete(): void;
 }
@@ -33,9 +30,8 @@ function DrawingHeader({ index }: DrawingHeaderProps) {
   );
 }
 
-export function DrawingBoard({ nonce, disabled = false, onComplete }: DrawingBoardProps) {
+export function DrawingBoard({ pictures, disabled = false, onComplete }: DrawingBoardProps) {
   const [index, setIndex] = useState(0);
-  const prompt = useMemo(() => drawingChallenge(nonce, index), [nonce, index]);
   const drawing = useDrawingCanvas(index, disabled);
   const advance = (): void => {
     if (index + 1 >= REQUIRED_DRAWINGS) onComplete();
@@ -45,14 +41,14 @@ export function DrawingBoard({ nonce, disabled = false, onComplete }: DrawingBoa
     <section className="bio-draw" aria-label="Handwriting challenge">
       <DrawingHeader index={index} />
       <main className="bio-draw-main">
-        <div className="bio-draw-challenge" aria-label={`Draw ${prompt.letter}`}>
+        <div className="bio-draw-challenge" aria-label={`Drawing prompt ${index + 1}`}>
           <span>DRAW</span>
-          <DotLetterPlate letter={prompt.letter} seed={prompt.seed} />
+          <DrawingPicturePlayer pictures={pictures} promptIndex={index} />
         </div>
         <div className={`drawing-surface${drawing.hasInk ? ' has-ink' : ''}`}>
           <canvas
             ref={drawing.canvasReference}
-            aria-label={`Draw the letter ${prompt.letter}`}
+            aria-label={`Draw prompt ${index + 1}`}
             onPointerDown={drawing.begin}
             onPointerMove={drawing.move}
             onPointerUp={drawing.end}

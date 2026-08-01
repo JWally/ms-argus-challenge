@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./drawing": "./src/drawing/index.ts",
     "./qr": "./src/qr/index.ts"
   },
   "dependencies": {

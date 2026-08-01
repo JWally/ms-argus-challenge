@@ -90,7 +90,7 @@
   --draw-erase-fg: #e5e7eb;
   --draw-erase-disabled-bg: #11131a;
   --draw-erase-disabled-fg: #94a3b8;
-  --canvas-size: min(calc(100vw - 1rem), 600px);
+  --canvas-size: min(calc(100vw - 2rem), 360px);
   display: flex;
   width: 100%;
   min-height: 100dvh;
@@ -111,7 +111,7 @@
 
 .bio-draw-title {
   margin: 0;
-  font-size: clamp(1.75rem, 5dvh, 2.5rem);
+  font-size: clamp(1.45rem, 4dvh, 2rem);
   letter-spacing: 0.1em;
 }
 
@@ -155,21 +155,24 @@
   position: relative;
   display: grid;
   width: var(--canvas-size);
-  min-height: 6rem;
-  max-height: min(13.5rem, 26dvh);
   place-items: center;
   overflow: hidden;
-  border: 1px solid var(--draw-border);
-  border-radius: 8px;
-  aspect-ratio: 5 / 3;
-  background: #050505;
+  border: 2px solid var(--draw-border);
+  border-radius: 12px;
+  aspect-ratio: 20 / 9;
+  background: #11111e;
 }
 
-.bio-draw-dot-canvas {
+.bio-draw-dot-canvas,
+.bio-draw-picture-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.bio-draw-picture-canvas {
+  object-fit: fill;
 }
 
 .bio-draw-challenge > span {
@@ -188,8 +191,8 @@
   position: relative;
   display: block;
   width: var(--canvas-size);
-  min-height: clamp(12rem, 30dvh, 16rem);
-  max-height: min(22rem, 44dvh);
+  min-height: clamp(10rem, 28dvh, 14rem);
+  max-height: min(18rem, 38dvh);
   flex: 1;
   margin-top: 0.5rem;
 }
