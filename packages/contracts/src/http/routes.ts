@@ -14,6 +14,7 @@ export const CHALLENGE_HTTP_ROUTES = [
   'POST /api/sso/telemetry',
   'POST /api/session/{id}/desktop-attest',
   'POST /api/session/{id}/phone-attest',
+  'POST /api/session/{id}/drawing-pictures',
   'GET /api/session/{id}/result',
   'ANY /api/{proxy+}',
 ] as const;

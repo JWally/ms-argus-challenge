@@ -1,8 +1,10 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { sealDrawingPictures } from '@argus-challenge/adapters/drawing';
 import { createServerQrRendererPrimer, sealPairTokenQr } from '@argus-challenge/adapters/qr';
 import {
   INDIVIDUAL_SCORE_LIMIT,
   classifyProjection,
+  createDrawingPicturesHandler,
   collectDesktopEvidence,
   createDesktopAttestationHandler,
   createPairTokenMintHandler,
@@ -32,11 +34,12 @@ function participantToken(event: unknown): string {
 async function authenticateParticipant(
   runtime: SharedRuntime,
   event: unknown,
-  sessionId: string
+  sessionId: string,
+  role?: 'desktop' | 'phone'
 ): Promise<boolean> {
   const token = participantToken(event);
   const claims = token ? await runtime.webSocketCrypto.verifyBootstrapToken(token) : null;
-  return claims?.sessionId === sessionId;
+  return claims?.sessionId === sessionId && (!role || claims.role === role);
 }
 
 function desktopSummary(runtime: SharedRuntime, argusSessionId: string) {
@@ -72,6 +75,7 @@ function sessionStart(runtime: SharedRuntime) {
       ids: {
         sessionId: randomUUID,
         nonce: () => randomBytes(32).toString('base64url'),
+        drawingPromptSeed: () => randomBytes(32).toString('base64url'),
       },
       clock: { nowEpochSeconds: runtime.nowEpochSeconds },
       logger: { info: console.info, warn: console.warn },
@@ -159,17 +163,26 @@ function phoneAttestation(runtime: SharedRuntime) {
 }
 
 export function createPairRuntime(runtime: SharedRuntime) {
-  const authenticate = (event: unknown, sessionId: string) =>
-    authenticateParticipant(runtime, event, sessionId);
+  const authenticate = (event: unknown, sessionId: string, role?: 'desktop' | 'phone') =>
+    authenticateParticipant(runtime, event, sessionId, role);
   const primeQrRenderer = createServerQrRendererPrimer(runtime.config.publicOrigin);
   const sealQr = (input: Parameters<typeof sealPairTokenQr>[0]) =>
     sealPairTokenQr(input, {
+      recordProfile: (profile) => console.info(JSON.stringify(profile)),
+    });
+  const sealDrawing = (input: Parameters<typeof sealDrawingPictures>[0]) =>
+    sealDrawingPictures(input, {
       recordProfile: (profile) => console.info(JSON.stringify(profile)),
     });
   return {
     startSession: sessionStart(runtime),
     attestDesktop: desktopAttestation(runtime),
     attestPhone: phoneAttestation(runtime),
+    getDrawingPictures: createDrawingPicturesHandler({
+      authenticatePhone: (event, sessionId) => authenticate(event, sessionId, 'phone'),
+      loadSession: runtime.sessions.load,
+      sealPictures: async (input) => ({ ...(await sealDrawing(input)) }),
+    }),
     getSessionResult: createSessionResultHandler({
       authenticateParticipant: authenticate,
       loadSession: (sessionId) => completedSession(runtime, sessionId),

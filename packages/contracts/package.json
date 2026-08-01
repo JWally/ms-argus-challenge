@@ -6,6 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./browser/captcha-message": "./src/browser/captcha-message.ts",
+    "./drawing/glyph-masks": "./src/drawing/glyph-masks.ts",
+    "./drawing/glyph-mask-selection": "./src/drawing/glyph-mask-selection.ts",
+    "./drawing/picture-bundle": "./src/drawing/picture-bundle.ts",
     "./qr/ecdh-seal": "./src/qr/ecdh-seal.ts",
     "./qr/frame-bundle": "./src/qr/frame-bundle.ts",
     "./verdicts/fixed-envelope": "./src/verdicts/fixed-envelope.ts"

@@ -45,6 +45,7 @@ export function createHttpApplication(runtime: SharedRuntime): HttpApplication {
     loadSession: pair.loadSession,
     attestDesktop: pair.attestDesktop,
     attestPhone: pair.attestPhone,
+    getDrawingPictures: pair.getDrawingPictures,
     getSessionResult: pair.getSessionResult,
     mintPairToken: pair.mintPairToken,
     redeemPairToken: pair.redeemPairToken,

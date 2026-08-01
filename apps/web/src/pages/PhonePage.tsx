@@ -31,5 +31,5 @@ export function PhonePage() {
       />
     );
   }
-  return <DrawingBoard nonce={challenge.session.binding.nonce} onComplete={challenge.finish} />;
+  return <DrawingBoard pictures={challenge.session.pictures} onComplete={challenge.finish} />;
 }

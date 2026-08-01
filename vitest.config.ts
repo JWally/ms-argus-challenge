@@ -6,9 +6,11 @@ const root = fileURLToPath(new URL('.', import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
+      '@argus-challenge/adapters/drawing': `${root}packages/adapters/src/drawing/index.ts`,
       '@argus-challenge/adapters/qr': `${root}packages/adapters/src/qr/index.ts`,
       '@argus-challenge/adapters': `${root}packages/adapters/src/index.ts`,
       '@argus-challenge/contracts/browser/captcha-message': `${root}packages/contracts/src/browser/captcha-message.ts`,
+      '@argus-challenge/contracts/drawing/picture-bundle': `${root}packages/contracts/src/drawing/picture-bundle.ts`,
       '@argus-challenge/contracts/qr/ecdh-seal': `${root}packages/contracts/src/qr/ecdh-seal.ts`,
       '@argus-challenge/contracts/qr/frame-bundle': `${root}packages/contracts/src/qr/frame-bundle.ts`,
       '@argus-challenge/contracts/verdicts/fixed-envelope': `${root}packages/contracts/src/verdicts/fixed-envelope.ts`,

@@ -4,6 +4,7 @@ import {
   generateKeyPair,
   importPublicKey,
   openBytes,
+  unpackDrawingPictureBundle,
   unpackQrFrameBundle,
 } from '@argus-challenge/contracts';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -191,5 +192,38 @@ describe('deployed challenge stack', () => {
     const bundle = unpackQrFrameBundle(await openBytes(key, String(result.body.enc)));
     expect(bundle.frames).toHaveLength(4);
     expect(bundle.frames.every((frame) => frame.byteLength > 1_000)).toBe(true);
+  });
+
+  it('returns four side-partitioned server-rendered PNG frames per prompt to the authenticated phone', async () => {
+    const session = await startSession();
+    const client = await generateKeyPair();
+    const clientPublicKey = await exportPublicKey(client.publicKey);
+    const result = await json(`/api/session/${session.sessionId}/drawing-pictures`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${session.ws.phoneToken}` },
+      body: JSON.stringify({ clientPublicKey }),
+    });
+
+    expect(result.response.status).toBe(200);
+    expect(result.body).toMatchObject({
+      kind: 'drawing-pictures',
+      encoding: 'png',
+      compression: 'none',
+      framesPerPrompt: 4,
+      frameMs: 60,
+      pictureCount: 12,
+    });
+    const serverPublicKey = await importPublicKey(String(result.body.sPub));
+    const key = await deriveAesKey(client.privateKey, serverPublicKey);
+    const bundle = unpackDrawingPictureBundle(await openBytes(key, String(result.body.enc)));
+    expect(bundle.pictures).toHaveLength(12);
+    expect(bundle.pictures.every((picture) => picture.byteLength > 1_000)).toBe(true);
+    expect(
+      bundle.pictures.every((picture) =>
+        [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every(
+          (byte, index) => picture[index] === byte
+        )
+      )
+    ).toBe(true);
   });
 });

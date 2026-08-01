@@ -54,6 +54,39 @@ test('redeemed phone link enters the challenge without reloading the mobile app'
   await expect(page.locator('.phone-panel-page')).toBeVisible();
 });
 
+test('drawing display animates one server-rendered letter across four side partitions', async ({
+  page,
+}) => {
+  test.skip(live, 'the deterministic drawing preview is a development-only route');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/drawing-preview');
+  const picture = page.locator('.bio-draw-picture-canvas');
+  await expect(picture).toHaveCount(1);
+  await expect(picture).toBeVisible();
+  const sources = await picture.evaluate(
+    (image) =>
+      new Promise<string[]>((resolve) => {
+        const seen = new Set<string>();
+        const capture = (): void => {
+          if (image instanceof HTMLImageElement && image.src) seen.add(image.src);
+        };
+        capture();
+        const observer = new MutationObserver(() => {
+          capture();
+          if (seen.size < 4) return;
+          observer.disconnect();
+          resolve([...seen]);
+        });
+        observer.observe(image, { attributes: true, attributeFilter: ['src'] });
+        window.setTimeout(() => {
+          observer.disconnect();
+          resolve([...seen]);
+        }, 1_200);
+      })
+  );
+  expect(sources).toHaveLength(4);
+});
+
 test('embed exposes Pair reticle and device handshake semantics', async ({ page }) => {
   await page.goto(
     `/embed?${new URLSearchParams({

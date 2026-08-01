@@ -77,5 +77,19 @@ pages.
   browser experience. Its bytes and the visible pair bundle are not server
   authority; authenticated server state and signed verdicts remain the trust
   boundary.
+- Drawing prompt letters are server-owned. Session creation stores a
+  server-only drawing seed, and the phone retrieves prompt imagery through the
+  phone-authenticated `/api/session/{id}/drawing-pictures` route by sending only
+  an ephemeral ECDH public key. The response contains sealed image bytes and
+  display metadata, never letters, prompt seeds, or client-visible catalog
+  mappings.
+- Each drawing step presents one server-rendered target letter across four
+  60 ms frames. Frames one and three partition the retained left-side blocks;
+  frames two and four independently partition the retained right-side blocks.
+  A deterministic 95% of eligible glyph blocks is retained across the whole
+  cycle, making each frame roughly 47.5% of one side while every retained block
+  appears exactly once. Each frame adds independent, glyph-colored block static.
+  Prompt obfuscation is not a trust boundary, and human readability remains the
+  priority once the authenticated phone has opened the sealed images.
 - Missing projection, binding, proof, or signing material fails closed.
 - Polling can recover delivery but cannot bypass WebSocket authentication.

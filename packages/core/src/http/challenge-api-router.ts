@@ -49,6 +49,11 @@ export interface ChallengeApiRouterDependencies {
   loadSession(sessionId: string): Promise<PublicChallengeSession | null>;
   attestDesktop(body: Body, sessionId: string): MaybePromise<ApiResponse>;
   attestPhone(body: Body, sessionId: string, viewerIp: string): MaybePromise<ApiResponse>;
+  getDrawingPictures(
+    event: ChallengeApiEvent,
+    sessionId: string,
+    body: Body
+  ): MaybePromise<ApiResponse>;
   getSessionResult(event: ChallengeApiEvent, sessionId: string): MaybePromise<ApiResponse>;
   mintPairToken(event: ChallengeApiEvent, sessionId: string, body: Body): MaybePromise<ApiResponse>;
   redeemPairToken(token: string): Promise<unknown>;
@@ -139,6 +144,10 @@ function routes(
     [
       'POST /api/session/{id}/phone-attest',
       () => dependencies.attestPhone(body, sessionId, sourceIp),
+    ],
+    [
+      'POST /api/session/{id}/drawing-pictures',
+      () => dependencies.getDrawingPictures(event, sessionId, body),
     ],
     ['GET /api/session/{id}/result', () => dependencies.getSessionResult(event, sessionId)],
     ['POST /api/session/{id}/pair-token', () => dependencies.mintPairToken(event, sessionId, body)],

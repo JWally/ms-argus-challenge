@@ -9,7 +9,11 @@ function dependencies(overrides: Partial<StartSessionDependencies> = {}): StartS
     rateLimiter: { allow: vi.fn().mockResolvedValue(true) },
     sessions: { create: vi.fn().mockResolvedValue({ ok: true }) },
     bootstrapTokens: { mint: vi.fn(async (_sessionId, role) => `${role}-token`) },
-    ids: { sessionId: () => SESSION_ID, nonce: () => 'nonce-1' },
+    ids: {
+      sessionId: () => SESSION_ID,
+      nonce: () => 'nonce-1',
+      drawingPromptSeed: () => 'server-only-drawing-seed',
+    },
     clock: { nowEpochSeconds: () => 1_900_000_000 },
     sessionTtlSeconds: 300,
     proofRequiredByDefault: false,
@@ -36,6 +40,7 @@ describe('start session', () => {
     expect(deps.sessions.create).toHaveBeenCalledWith({
       id: SESSION_ID,
       nonce: 'nonce-1',
+      drawingPromptSeed: 'server-only-drawing-seed',
       expiresAt: 1_900_000_300,
       challengeId: CHALLENGE_ID,
       cpi: 'argus_cpi_test_Example12345.forceauth',

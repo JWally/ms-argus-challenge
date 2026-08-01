@@ -4,6 +4,7 @@ export type SessionVerdict = 'pending' | 'paired' | 'failed';
 export interface ChallengeSession {
   id: string;
   nonce: string;
+  drawingPromptSeed?: string;
   expiresAt: number;
   challengeId: string;
   cpi: string | null;

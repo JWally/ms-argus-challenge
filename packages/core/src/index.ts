@@ -8,6 +8,8 @@ export * from './attestations/phone-attestation-request.js';
 export * from './attestations/phone-attestation-route.js';
 export * from './http/application-response.js';
 export * from './http/challenge-api-router.js';
+export * from './drawing/drawing-pictures-route.js';
+export * from './drawing/drawing-prompts.js';
 export * from './pairing/pair-token-mint.js';
 export * from './relay/websocket-router.js';
 export * from './proofs/proof-of-life.js';

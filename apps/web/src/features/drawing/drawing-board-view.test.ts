@@ -5,6 +5,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { DrawingBoard } from './DrawingBoard.js';
 
 const phoneStyles = readFileSync(new URL('../../styles/phone.css', import.meta.url), 'utf8');
+const pictures = {
+  encoding: 'png' as const,
+  width: 400,
+  height: 180,
+  framesPerPrompt: 2,
+  frameMs: 50,
+  pictures: Array.from({ length: 6 }, () => new Uint8Array([137, 80, 78, 71])),
+};
 
 function channelLuminance(channel: number): number {
   const normalized = channel / 255;
@@ -43,7 +51,7 @@ describe('phone drawing-board presentation', () => {
   it('keeps Pair biometric-captcha structure without an alternate challenge', () => {
     const markup = renderToStaticMarkup(
       createElement(DrawingBoard, {
-        nonce: 'phone-drawing-contract-nonce',
+        pictures,
         onComplete: vi.fn(),
       })
     );
@@ -52,7 +60,10 @@ describe('phone drawing-board presentation', () => {
     expect(markup).toContain('ARGUS');
     expect(markup).toContain('PAIR');
     expect(markup).toContain('Handwriting Biometric Captcha');
-    expect(markup).toContain('bio-draw-dot-canvas');
+    expect(markup).toContain('bio-draw-picture-canvas');
+    expect(markup.match(/bio-draw-picture-canvas/g)).toHaveLength(1);
+    expect(markup).not.toContain('Letter A');
+    expect(markup).not.toContain('Draw the letter');
     expect(markup).toContain('Draw the Letter Here');
     expect(markup).toContain('class="drawing-touch-cue"');
     expect(markup).toContain('class="drawing-hint-text"');
@@ -91,10 +102,11 @@ describe('phone drawing-board presentation', () => {
     );
   });
 
-  it('uses a neutral touch cue and lets the drawing surface fill the available phone space', () => {
+  it('uses a neutral touch cue and keeps the drawing UI scaled for phones', () => {
     expect(phoneStyles).toContain('@keyframes drawing-touch-ring');
+    expect(phoneStyles).toContain('--canvas-size: min(calc(100vw - 2rem), 360px);');
     expect(phoneStyles).toMatch(
-      /\.drawing-surface \{[^}]*min-height: clamp\(12rem, 30dvh, 16rem\);[^}]*flex: 1;/s
+      /\.drawing-surface \{[^}]*min-height: clamp\(10rem, 28dvh, 14rem\);[^}]*flex: 1;/s
     );
     expect(phoneStyles).toMatch(
       /\.drawing-surface canvas \{[^}]*position: absolute;[^}]*inset: 0;/s
@@ -103,7 +115,8 @@ describe('phone drawing-board presentation', () => {
     expect(phoneStyles).toMatch(/\.drawing-touch-cue \{[^}]*grid-area: 1 \/ 1;/s);
     expect(phoneStyles).toMatch(/\.drawing-actions \{[^}]*position: sticky;[^}]*bottom: 0;/s);
     expect(phoneStyles).toMatch(
-      /\.bio-draw-challenge \{[^}]*border: 1px solid var\(--draw-border\);/s
+      /\.bio-draw-challenge \{[^}]*border: 2px solid var\(--draw-border\);/s
     );
+    expect(phoneStyles).toMatch(/\.bio-draw-challenge \{[^}]*aspect-ratio: 20 \/ 9;/s);
   });
 });

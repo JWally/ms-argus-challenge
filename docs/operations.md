@@ -35,6 +35,21 @@ diagnosing QR regressions, because the HTTP Lambda serves every Challenge route.
 Supported deployment overrides are documented in `.env.example`. Do not commit
 real credentials.
 
+## Dependency audit policy
+
+<!-- cspell:ignore GHSA qwww -->
+
+`npm run quality` includes the moderate-or-higher dependency audit used by CI.
+The gate fails closed for malformed audit output, unresolved advisory chains,
+and every finding except
+[`GHSA-qwww-vcr4-c8h2`](https://github.com/advisories/GHSA-qwww-vcr4-c8h2).
+
+That temporary exception is limited to `react-router` and expires on October 1, 2026. The advisory applies to React Server Component APIs; Challenge is a
+browser-only SPA that uses the stable client router and does not ship React
+Server Components or server actions. Upgrade to a patched React Router release
+and remove the exception as soon as one is published. A different advisory,
+package, or expired exception still fails the build.
+
 ## Cutover prerequisites
 
 - Compatibility matrix complete.

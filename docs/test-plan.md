@@ -31,6 +31,9 @@
 - Session creation fails closed when the rate-limit store is unavailable.
 - Pair-token minting authenticates the desktop and requires the ephemeral QR
   public key without treating client-reported worker bytes as authorization.
+- Drawing-picture minting authenticates the phone participant, derives prompt
+  letters from a server-only session seed, and returns only sealed PNG image
+  bytes plus display metadata.
 - SSO return-code and approval-token hashes use one constant-time comparison
   primitive and reject malformed digest lengths.
 - Pair and all three SSO legs fail closed unless their current, verified API
@@ -80,8 +83,19 @@ dependency direction:
   of asking one phone to scan itself.
 - The embedded widget uses Pair's QR reticle, explicit desktop-to-phone
   handshake rail, and settled verification states.
-- The phone uses the full-screen three-letter biometric drawing board with no
+- The phone uses the full-screen three-step biometric drawing board with no
   dial pad or alternate fallback.
+- The phone drawing board consumes decrypted server-rendered prompt frames. It
+  does not derive letters from the public nonce or carry a letter-to-asset
+  lookup in the browser bundle.
+- Each drawing step shows one target letter across four 60 ms PNG frames. The
+  first and third frames partition the retained left-side blocks; the second and
+  fourth partition the retained right-side blocks. A deterministic 95% of
+  eligible glyph blocks remains stable across the cycle, making each frame about
+  47.5% of one side and showing every retained block exactly once. Independent
+  glyph-colored block static appears in every frame. Pixel tests require strong
+  glyph/background contrast, continuous source-mask rows across every letter
+  variant, and complementary coverage of the target glyph width.
 - Redeeming the single-use QR link replaces the phone route inside the existing
   browser document; it must not reload the app or integrity bootstrap between
   the opening state and the drawing board.
@@ -124,6 +138,7 @@ Cutover backlog:
 - Real HTTP API, DynamoDB, Secrets Manager, and both WebSocket identities.
 - Authenticated phone-to-desktop relay through API Gateway.
 - Deployed worker delivery and client-decryptable ECDH QR frames.
+- Authenticated phone delivery of three client-decryptable four-frame PNG prompts.
 
 ## QR latency and warmup
 
