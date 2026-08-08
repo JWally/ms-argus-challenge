@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { evaluateAuditReport } from '../../scripts/audit-policy.mjs';
 
 const RSC_ADVISORY_URL = 'https://github.com/advisories/GHSA-qwww-vcr4-c8h2';
+const CDK_BRACE_ADVISORY_URL = 'https://github.com/advisories/GHSA-rgw5-rvv9-x895';
+const CDK_BRACE_NODE = 'node_modules/aws-cdk-lib/node_modules/brace-expansion';
 const BEFORE_EXPIRY = new Date('2026-09-01T00:00:00.000Z');
+const BEFORE_CDK_EXCEPTION_EXPIRY = new Date('2026-08-15T00:00:00.000Z');
 
 const rscAdvisory = {
   source: 1_112_222,
@@ -53,6 +56,65 @@ describe('dependency audit policy', () => {
       'react-router',
       'react-router-dom',
     ]);
+  });
+
+  it('accepts the bundled CDK brace-expansion advisory only at the pinned CDK path', () => {
+    const advisory = {
+      source: 1_130_734,
+      name: 'brace-expansion',
+      dependency: 'brace-expansion',
+      title: 'brace-expansion denial of service',
+      url: CDK_BRACE_ADVISORY_URL,
+      severity: 'high',
+      range: '>=4.0.0 <5.0.9',
+    } as const;
+
+    const accepted = evaluateAuditReport(
+      {
+        vulnerabilities: {
+          'brace-expansion': {
+            name: 'brace-expansion',
+            severity: 'high',
+            via: [advisory],
+            nodes: [CDK_BRACE_NODE],
+          },
+        },
+      },
+      BEFORE_CDK_EXCEPTION_EXPIRY
+    );
+    const blocked = evaluateAuditReport(
+      {
+        vulnerabilities: {
+          'brace-expansion': {
+            name: 'brace-expansion',
+            severity: 'high',
+            via: [advisory],
+            nodes: ['node_modules/brace-expansion'],
+          },
+        },
+      },
+      BEFORE_CDK_EXCEPTION_EXPIRY
+    );
+    const expired = evaluateAuditReport(
+      {
+        vulnerabilities: {
+          'brace-expansion': {
+            name: 'brace-expansion',
+            severity: 'high',
+            via: [advisory],
+            nodes: [CDK_BRACE_NODE],
+          },
+        },
+      },
+      new Date('2026-08-22T00:00:00.000Z')
+    );
+
+    expect(accepted.blocked).toEqual([]);
+    expect(accepted.accepted.map(({ packageName }) => packageName)).toEqual(['brace-expansion']);
+    expect(blocked.accepted).toEqual([]);
+    expect(blocked.blocked.map(({ packageName }) => packageName)).toEqual(['brace-expansion']);
+    expect(expired.accepted).toEqual([]);
+    expect(expired.blocked.map(({ packageName }) => packageName)).toEqual(['brace-expansion']);
   });
 
   it('blocks every other moderate-or-higher advisory', () => {
