@@ -8,7 +8,7 @@ import { renderSvgMask, type RenderDrawingMaskInput } from './svg-mask.js';
 export const DRAWING_PICTURE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 export const DEFAULT_DRAWING_PICTURE_VARIANTS = 20;
 export const DEFAULT_DRAWING_PICTURE_FRAMES = 4;
-export const DEFAULT_DRAWING_PICTURE_FRAME_MS = 60;
+export const DEFAULT_DRAWING_PICTURE_FRAME_MS = 30;
 
 const DEFAULT_ENCODING: DrawingPictureEncoding = 'png';
 const DEFAULT_WIDTH = 600;

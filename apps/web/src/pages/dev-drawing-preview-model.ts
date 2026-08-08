@@ -2,7 +2,7 @@ export const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('');
 export const WIDTH = 600;
 export const HEIGHT = 270;
 export const FRAMES_PER_PROMPT = 4;
-export const FRAME_MS = 60;
+export const FRAME_MS = 30;
 
 interface LetterMaskStyle {
   fontSizeScale: number;

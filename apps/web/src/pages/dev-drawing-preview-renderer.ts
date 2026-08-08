@@ -73,11 +73,12 @@ async function renderFrame(input: {
   });
   for (const dot of dots) {
     const appearance = bioPictureDotAppearance({ dot });
+    if (!appearance) continue;
     context.fillStyle = appearance.color;
     roundedRectPath({
       context,
-      centerX: dot.x,
-      centerY: dot.y,
+      centerX: appearance.centerX,
+      centerY: appearance.centerY,
       size: appearance.size,
       radius: appearance.radius,
     });

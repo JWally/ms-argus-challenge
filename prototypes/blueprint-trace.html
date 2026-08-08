@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Argus · trace-auth</title>
+<style>
+  :root{ --ink:#eaf1ff; --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.20); --green:#54f08a;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:#061024;font-family:var(--mono);color:var(--ink);overflow:hidden}
+  .phone{position:relative;width:100%;max-width:560px;height:100vh;height:100svh;margin:0 auto;overflow:hidden;
+    background:radial-gradient(120% 70% at 50% 20%, rgba(255,255,255,.10), rgba(255,255,255,0) 55%),
+               radial-gradient(150% 130% at 50% 120%, #0a2e6b, #0e3a86 42%);}
+  .grid{position:absolute;inset:0;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px),
+      linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+    background-size:26px 26px,26px 26px,130px 130px,130px 130px;
+    -webkit-mask-image:radial-gradient(120% 100% at 50% 42%, #000 66%, transparent 100%);
+            mask-image:radial-gradient(120% 100% at 50% 42%, #000 66%, transparent 100%);}
+  .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 130px 34px rgba(3,10,28,.72)}
+  .corner{position:absolute;width:26px;height:26px;border:2px solid rgba(255,255,255,.5);z-index:2}
+  .tl{top:calc(20px + env(safe-area-inset-top));left:20px;border-right:0;border-bottom:0}
+  .tr{top:calc(20px + env(safe-area-inset-top));right:20px;border-left:0;border-bottom:0}
+  .bl{bottom:calc(120px + env(safe-area-inset-bottom));left:20px;border-right:0;border-top:0}
+  .br{bottom:calc(120px + env(safe-area-inset-bottom));right:20px;border-left:0;border-top:0}
+  .eyebrow{position:absolute;top:calc(34px + env(safe-area-inset-top));left:0;right:0;text-align:center;font-size:11px;
+    letter-spacing:.42em;text-transform:uppercase;color:rgba(234,241,255,.72);z-index:2}
+  .subtitle{position:absolute;top:calc(60px + env(safe-area-inset-top));left:0;right:0;text-align:center;font-size:13px;
+    letter-spacing:.06em;color:rgba(234,241,255,.9);z-index:2}
+  .titleblock{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom));font-size:9.5px;line-height:1.7;
+    letter-spacing:.14em;color:rgba(234,241,255,.5);text-transform:uppercase;z-index:2}
+  .titleblock b{color:rgba(234,241,255,.85)}
+  .hint{position:absolute;left:0;right:0;bottom:calc(102px + env(safe-area-inset-bottom));text-align:center;font-size:10.5px;
+    letter-spacing:.22em;text-transform:uppercase;color:rgba(234,241,255,.45);z-index:2}
+  canvas.layer{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+  #guide{filter:blur(1.4px);z-index:1}
+  #draw{z-index:3;transition:opacity .3s}
+  #fx{z-index:4;pointer-events:none}
+  .bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:14px;padding:16px 22px;
+    padding-bottom:calc(18px + env(safe-area-inset-bottom));z-index:6;
+    background:linear-gradient(0deg, rgba(6,14,34,.92), rgba(6,14,34,0))}
+  button{flex:1;font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink);background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.5);border-radius:14px;
+    padding:16px 0;cursor:pointer;transition:.12s}
+  button:active{transform:translateY(1px)} button:disabled{opacity:.4}
+  #erase{border-color:rgba(255,255,255,.32);color:rgba(234,241,255,.82)}
+  #next{border-color:var(--green);color:var(--green)} #next:active{background:rgba(84,240,138,.12)}
+</style></head>
+<body>
+  <div class="phone" id="phone">
+    <div class="grid"></div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="eyebrow">Argus · trace-auth</div>
+    <div class="subtitle" id="subtitle">Trace the character</div>
+    <canvas id="guide" class="layer"></canvas>
+    <canvas id="draw"  class="layer"></canvas>
+    <canvas id="fx"    class="layer"></canvas>
+    <div class="titleblock">Sheet 01 / 01<br><b>Rev D</b> · fig. 1<br>Scale 1:1</div>
+    <div class="hint" id="hint">Use your finger</div>
+    <div class="bar"><button id="erase">Erase</button><button id="next">Next</button></div>
+    <div class="vignette"></div>
+  </div>
+<script>
+(() => {
+  const ALPHA='ABCDEFGHJKLMNPQRSTUVWXYZ'.split('');
+  const SHAPES=['circle','square','triangle','cross','x','star','heart','check','arrow','zigzag','spiral','bolt','waves'];
+  const LETTERS_EASY='ALSVEZ'.split('');
+  const POOL=[...SHAPES.map(v=>({t:'shape',v})), ...LETTERS_EASY.map(v=>({t:'letter',v}))];
+  const pickPrompt=()=>POOL[Math.floor(Math.random()*POOL.length)];
+  const $=id=>document.getElementById(id);
+  const phone=$('phone'), guide=$('guide'), draw=$('draw'), fx=$('fx');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches, GREEN='84,240,138';
+  const MONO=()=>getComputedStyle(document.body).fontFamily;
+  const setSubtitle=()=>{ $('subtitle').textContent = prompt.t==='shape' ? 'Trace the symbol' : 'Trace the character'; };
+  let prompt={t:'shape',v:'star'}, cw=0, ch=0, dpr=1, mode='idle';
+  const target=document.createElement('canvas'), corr=document.createElement('canvas');
+  const gctx=guide.getContext('2d'), dctx=draw.getContext('2d'), fctx=fx.getContext('2d'),
+        tctx=target.getContext('2d'), cctx=corr.getContext('2d',{willReadFrequently:true});
+  let corrA=null;
+  const LETTER_FONT=()=>'500 '+fontPx()+'px system-ui,-apple-system,"Segoe UI",Arial,sans-serif';
+
+  const fontPx=()=>Math.min(cw,ch)*0.72;                 // big glyph, thinner strokes
+  function drawShape(c,name,cx,cy,r,tw){
+    c.lineWidth=tw; c.lineCap='round'; c.lineJoin='round'; c.beginPath();
+    if(name==='circle') c.arc(cx,cy,r,0,7);
+    else if(name==='square'){ const s=r*0.86; c.rect(cx-s,cy-s,s*2,s*2); }
+    else if(name==='triangle'){ for(let i=0;i<3;i++){const a=-Math.PI/2+i*2*Math.PI/3,x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?c.lineTo(x,y):c.moveTo(x,y);} c.closePath(); }
+    else if(name==='cross'){ c.moveTo(cx-r,cy); c.lineTo(cx+r,cy); c.moveTo(cx,cy-r); c.lineTo(cx,cy+r); }
+    else if(name==='x'){ const q=r*0.8; c.moveTo(cx-q,cy-q); c.lineTo(cx+q,cy+q); c.moveTo(cx+q,cy-q); c.lineTo(cx-q,cy+q); }
+    else if(name==='star'){ for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*0.42:r,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?c.lineTo(x,y):c.moveTo(x,y);} c.closePath(); }
+    else if(name==='heart'){ const t=cy-r*0.25; c.moveTo(cx,cy+r*0.72); c.bezierCurveTo(cx-r*1.1,cy-r*0.05,cx-r*0.55,t-r*0.6,cx,t); c.bezierCurveTo(cx+r*0.55,t-r*0.6,cx+r*1.1,cy-r*0.05,cx,cy+r*0.72); c.closePath(); }
+    else if(name==='check'){ c.moveTo(cx-r*0.8,cy); c.lineTo(cx-r*0.2,cy+r*0.6); c.lineTo(cx+r*0.85,cy-r*0.7); }
+    else if(name==='arrow'){ c.moveTo(cx-r,cy); c.lineTo(cx+r*0.6,cy); c.moveTo(cx+r*0.6,cy); c.lineTo(cx+r*0.18,cy-r*0.42); c.moveTo(cx+r*0.6,cy); c.lineTo(cx+r*0.18,cy+r*0.42); }
+    else if(name==='zigzag'){ const n=6; for(let k=0;k<=n;k++){const x=cx-r+2*r*k/n,y=cy+(k%2?1:-1)*r*0.5;k?c.lineTo(x,y):c.moveTo(x,y);} }
+    else if(name==='spiral'){ const N=64,tn=2.6; for(let i=0;i<=N;i++){const tt=i/N,a=tt*tn*2*Math.PI,rr=r*tt,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;i?c.lineTo(x,y):c.moveTo(x,y);} }
+    else if(name==='bolt'){ [[0.2,-1],[-0.35,-0.05],[0.1,-0.05],[-0.25,1]].forEach((p,i)=>{const x=cx+p[0]*r,y=cy+p[1]*r;i?c.lineTo(x,y):c.moveTo(x,y);}); }
+    else if(name==='waves'){ for(let w=-1;w<=1;w++){ const bx=cx+w*r*0.62; for(let k=0;k<=24;k++){ const y=cy-r+2*r*k/24, x=bx+Math.sin(k/24*Math.PI*3)*r*0.16; k?c.lineTo(x,y):c.moveTo(x,y);} } }
+    c.stroke();
+  }
+  function paint(c,style,cx,cy,r,tw){
+    if(prompt.t==='letter'){ c.fillStyle=style; c.textAlign='center'; c.textBaseline='middle'; c.font=LETTER_FONT(); c.fillText(prompt.v,cx,cy); }
+    else { c.strokeStyle=style; drawShape(c,prompt.v,cx,cy,r,tw); }
+  }
+  function renderGuide(){
+    const cx=cw/2, cy=ch*0.42, r=fontPx()*0.46, tw=Math.min(cw,ch)*0.052;
+    for(const [c,style] of [[gctx,'rgba(255,255,255,0.22)'],[tctx,'#fff']]){
+      c.setTransform(dpr,0,0,dpr,0,0); c.clearRect(0,0,cw,ch); paint(c,style,cx,cy,r,tw);
+    }
+    // corridor: dilated tolerance band — inside=green, outside=red feedback (tight)
+    const tol=Math.min(cw,ch)*0.016;
+    cctx.setTransform(dpr,0,0,dpr,0,0); cctx.clearRect(0,0,cw,ch);
+    if(prompt.t==='letter'){ cctx.fillStyle='#fff'; cctx.strokeStyle='#fff'; cctx.lineJoin='round'; cctx.lineCap='round'; cctx.lineWidth=tol*2;
+      cctx.textAlign='center'; cctx.textBaseline='middle'; cctx.font=LETTER_FONT(); cctx.fillText(prompt.v,cx,cy); cctx.strokeText(prompt.v,cx,cy); }
+    else { cctx.strokeStyle='#fff'; drawShape(cctx,prompt.v,cx,cy,r,tw+tol*2); }
+    const cd=cctx.getImageData(0,0,corr.width,corr.height).data; corrA=new Uint8Array(corr.width*corr.height);
+    for(let i=0;i<corrA.length;i++) corrA[i]=cd[i*4+3]>100?1:0;
+  }
+  const inCorridor=(x,y)=>{ if(!corrA)return true; const xi=Math.round(x*dpr),yi=Math.round(y*dpr); if(xi<0||yi<0||xi>=corr.width||yi>=corr.height)return false; return corrA[yi*corr.width+xi]===1; };
+  function setupDraw(){ dctx.setTransform(dpr,0,0,dpr,0,0); dctx.lineCap='round'; dctx.lineJoin='round';
+    dctx.lineWidth=24; dctx.strokeStyle='#54f08a'; dctx.shadowColor='rgba('+GREEN+',.55)'; dctx.shadowBlur=8; }
+  const clearDraw=()=>{ dctx.save(); dctx.setTransform(1,0,0,1,0,0); dctx.clearRect(0,0,draw.width,draw.height); dctx.restore(); strokes=[]; };
+  const clearFx=()=>{ fctx.save(); fctx.setTransform(1,0,0,1,0,0); fctx.clearRect(0,0,fx.width,fx.height); fctx.restore(); };
+  function layout(){
+    cw=phone.clientWidth; ch=phone.clientHeight; dpr=Math.min(3,window.devicePixelRatio||1);
+    for(const c of [guide,draw,fx,target,corr]){ c.width=Math.round(cw*dpr); c.height=Math.round(ch*dpr); }
+    renderGuide(); setupDraw(); clearDraw(); fctx.setTransform(dpr,0,0,dpr,0,0); clearFx();
+  }
+  addEventListener('resize',()=>{ if(mode==='idle') layout(); });
+
+  // ---- drawing + stroke capture (x,y,t) ----
+  let strokes=[], cur=null, drawing=false, lx=0, ly=0;
+  const rel=(e,r)=>({x:e.clientX-r.left, y:e.clientY-r.top});
+  const rich=(e,r,ec,pred,spoof)=>({ x:e.clientX-r.left, y:e.clientY-r.top, t:e.timeStamp||performance.now(),
+    pressure:e.pressure||0, tiltX:e.tiltX||0, tiltY:e.tiltY||0, width:e.width||0, height:e.height||0,
+    coalescedCount:ec, coalescedSpoofed:spoof, predictedCount:pred });
+  const IN='#54f08a', OUT='#ff5a63';
+  const setInk=inside=>{ dctx.strokeStyle=inside?IN:OUT; dctx.fillStyle=inside?IN:OUT; dctx.shadowColor=inside?'rgba(84,240,138,.5)':'rgba(255,90,99,.5)'; };
+  draw.addEventListener('pointerdown',e=>{ if(mode!=='idle')return; drawing=true; const r=draw.getBoundingClientRect(); const p=rel(e,r); lx=p.x; ly=p.y;
+    cur={pts:[rich(e,r,0,0,false)]}; strokes.push(cur); setInk(inCorridor(p.x,p.y));
+    dctx.beginPath(); dctx.arc(p.x,p.y,dctx.lineWidth/2,0,7); dctx.fill(); draw.setPointerCapture(e.pointerId); });
+  draw.addEventListener('pointermove',e=>{ if(!drawing)return; const r=draw.getBoundingClientRect();
+    const co=(typeof e.getCoalescedEvents==='function')?e.getCoalescedEvents():null, evs=(co&&co.length)?co:[e];
+    const pred=(typeof e.getPredictedEvents==='function')?((e.getPredictedEvents()||[]).length):0;
+    const spoof=evs.length>1 && evs.every(x=>x.timeStamp===evs[0].timeStamp);
+    for(const ce of evs){ const p=rel(ce,r); setInk(inCorridor(p.x,p.y));
+      dctx.beginPath(); dctx.moveTo(lx,ly); dctx.lineTo(p.x,p.y); dctx.stroke(); lx=p.x; ly=p.y;
+      cur.pts.push(rich(ce,r,evs.length,pred,spoof)); } });
+  const stop=()=>{drawing=false;}; draw.addEventListener('pointerup',stop); draw.addEventListener('pointercancel',stop);
+
+  // ---- accuracy: coarse-grid F1 of trace vs crisp glyph ----
+  function scoreTrace(){
+    const W=draw.width,H=draw.height,cell=Math.max(6,Math.round(9*dpr));
+    const gw=Math.ceil(W/cell),gh=Math.ceil(H/cell),tg=new Uint8Array(gw*gh),dg=new Uint8Array(gw*gh);
+    const td=tctx.getImageData(0,0,W,H).data, dd=dctx.getImageData(0,0,W,H).data;
+    for(let y=0;y<H;y++){const gy=(y/cell|0)*gw; for(let x=0;x<W;x++){const i=(y*W+x)*4,gi=gy+(x/cell|0);
+      if(td[i+3]>40)tg[gi]=1; if(dd[i+3]>40)dg[gi]=1;}}
+    let t=0,d=0,hit=0; for(let i=0;i<gw*gh;i++){ if(tg[i])t++; if(dg[i]){d++; if(tg[i])hit++;} }
+    if(d===0) return {pct:0,cov:0,prec:0};
+    const cov=hit/Math.max(1,t), prec=hit/d, f1=(cov+prec)?2*cov*prec/(cov+prec):0;
+    return {pct:Math.round(f1*100),cov:Math.round(cov*100),prec:Math.round(prec*100)};
+  }
+  // ---- ported biometric feature set (ms-argus-bio/biometrics.ts) ----
+  const _avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+  const _var=a=>{const m=_avg(a);return a.length?a.reduce((s,v)=>s+(v-m)**2,0)/a.length:0;};
+  const _lin=(xs,ys)=>{const n=xs.length;if(n<3)return{slope:0,r2:0};const mx=_avg(xs),my=_avg(ys);let xy=0,xx=0,yy=0;for(let i=0;i<n;i++){const dx=xs[i]-mx,dy=ys[i]-my;xy+=dx*dy;xx+=dx*dx;yy+=dy*dy;}return{slope:xx>0?xy/xx:0,r2:xx>0&&yy>0?xy*xy/(xx*yy):0};};
+  const _spec=(sig,f,sr)=>{const N=sig.length;if(!N)return 0;let re=0,im=0;for(let n=0;n<N;n++){const ph=2*Math.PI*f*n/sr;re+=sig[n]*Math.cos(ph);im-=sig[n]*Math.sin(ph);}return(re*re+im*im)/(N*N);};
+  const _speeds=S=>{const o=[];for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt>0)o.push(Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt);}}return o;};
+  function powerLawBeta(S){const V=[],R=[];for(const s of S){const p=s.pts;for(let i=1;i<p.length-1;i++){const dt=p[i+1].t-p[i].t;if(dt<1)continue;const dx1=p[i].x-p[i-1].x,dy1=p[i].y-p[i-1].y,dx2=p[i+1].x-p[i].x,dy2=p[i+1].y-p[i].y;const sp=Math.hypot(dx2,dy2)/dt,l1=Math.hypot(dx1,dy1),l2=Math.hypot(dx2,dy2);if(l1<0.5||l2<0.5||sp<0.01)continue;const cur=Math.abs(dx1*dy2-dy1*dx2)/(l1*l2);if(cur>0.001){V.push(Math.log(sp));R.push(Math.log(1/cur));}}}return _lin(R,V).slope;}
+  function tremorRatio(S){const sm=[];for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt<1)continue;sm.push({t:P[i].t,v:Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt});}}if(sm.length<20)return 0;const SR=100,t0=sm[0].t,t1=sm[sm.length-1].t,dur=t1-t0;if(dur<100)return 0;const n=Math.min(Math.floor(dur/1000*SR),512);if(n<20)return 0;const u=[];let si=0;for(let i=0;i<n;i++){const t=t0+i*1000/SR;while(si<sm.length-1&&sm[si+1].t<t)si++;if(si>=sm.length-1)u.push(sm[sm.length-1].v);else{const f=(t-sm[si].t)/(sm[si+1].t-sm[si].t);u.push(sm[si].v*(1-f)+sm[si+1].v*f);}}const m=_avg(u),c=u.map(v=>v-m);let tot=0,tr=0;for(let f=1;f<=20;f++){const pw=_spec(c,f,SR);tot+=pw;if(f>=8&&f<=12)tr+=pw;}return tot>0?tr/tot:0;}
+  function bellScore(S){let sum=0,cnt=0;for(const s of S){const P=s.pts;if(P.length<5)continue;const v=[];for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;v.push(dt>0?Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt:0);}const mx=Math.max(...v);if(!mx)continue;const nn=v.map(x=>x/mx);let er=0;for(let i=0;i<nn.length;i++)er+=Math.abs(nn[i]-Math.sin(Math.PI*((i+0.5)/nn.length)));sum+=1-er/nn.length;cnt++;}return cnt?sum/cnt:0;}
+  function ldlj(S){let J=0,L=0,T=0;for(const s of S){const p=s.pts;if(p.length<4)continue;const dur=p[p.length-1].t-p[0].t;if(dur<10)continue;let pl=0;const sp=[];for(let i=1;i<p.length;i++){const d=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);pl+=d;const dt=p[i].t-p[i-1].t;if(dt>0)sp.push({s:d/dt,t:p[i].t});}if(pl<1||sp.length<3)continue;let ji=0;for(let i=1;i<sp.length-1;i++){const d1=sp[i].t-sp[i-1].t,d2=sp[i+1].t-sp[i].t;if(d1<1||d2<1)continue;const a1=(sp[i].s-sp[i-1].s)/d1,a2=(sp[i+1].s-sp[i].s)/d2,da=(d1+d2)/2,jk=(a2-a1)/da;ji+=jk*jk*da;}J+=ji;L+=pl;T+=dur;}if(L<1||T<10)return 0;return Math.log(Math.sqrt(J*Math.pow(T,5)/(L*L))+1);}
+  function subStroke(S){let tp=0,c=0;for(const s of S){const P=s.pts;if(P.length<5)continue;const sp=[];for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;sp.push(dt<1?0:Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt);}const sm=sp.map((_,i)=>{const lo=Math.max(0,i-1),hi=Math.min(sp.length-1,i+1);let s=0;for(let j=lo;j<=hi;j++)s+=sp[j];return s/(hi-lo+1);});let pk=0;for(let i=1;i<sm.length-1;i++)if(sm[i]>sm[i-1]&&sm[i]>sm[i+1])pk++;tp+=pk;c++;}return c?tp/c:0;}
+  function ballistic(S){const pk=[];for(const s of S){const P=s.pts;if(P.length<5)continue;let mx=0,mi=0;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt<1)continue;const sp=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt;if(sp>mx){mx=sp;mi=i;}}if(mx>0)pk.push(mi/P.length);}return _avg(pk);}
+  function autoCorr1(S){const sp=_speeds(S);if(sp.length<6)return 0;const m=_avg(sp);let den=0;for(const v of sp)den+=(v-m)**2;if(!den)return 0;let num=0;for(let i=0;i<sp.length-1;i++)num+=(sp[i]-m)*(sp[i+1]-m);return num/den;}
+  function dirEntropy(S){const B=16,bins=new Array(B).fill(0);let tot=0;for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dx=P[i].x-P[i-1].x,dy=P[i].y-P[i-1].y;if(Math.abs(dx)<0.01&&Math.abs(dy)<0.01)continue;let a=Math.atan2(dy,dx);if(a<0)a+=2*Math.PI;bins[Math.min(B-1,Math.floor(a/(2*Math.PI)*B))]++;tot++;}}if(!tot)return 0;let e=0;for(const c of bins)if(c>0){const p=c/tot;e-=p*Math.log2(p);}return e;}
+  function rafCadence(S){const FP=[16.667,11.111,8.333,6.944],TOL=2.5,dts=[];for(const s of S)for(let i=1;i<s.pts.length;i++){const dt=s.pts[i].t-s.pts[i-1].t;if(dt>0)dts.push(dt);}if(!dts.length)return 0;let best=0;for(const fp of FP){let on=0;for(const dt of dts){const r=dt%fp;if(r<TOL||fp-r<TOL)on++;}best=Math.max(best,on/dts.length);}return best;}
+  function features(){
+    const S=strokes; let all=[]; for(const s of S) all=all.concat(s.pts);
+    const sp=_speeds(S); let len=0,first=Infinity,last=-Infinity;
+    for(const s of S){const P=s.pts;if(!P.length)continue;first=Math.min(first,P[0].t);last=Math.max(last,P[P.length-1].t);for(let i=1;i<P.length;i++)len+=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y);}
+    const accs=[];for(const s of S){const P=s.pts;for(let i=2;i<P.length;i++){const d1=P[i-1].t-P[i-2].t,d2=P[i].t-P[i-1].t;if(d1>0&&d2>0){const s1=Math.hypot(P[i-1].x-P[i-2].x,P[i-1].y-P[i-2].y)/d1,s2=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/d2;accs.push((s2-s1)/((d1+d2)/2));}}}
+    const jerks=[];for(let i=1;i<accs.length;i++)jerks.push(Math.abs(accs[i]-accs[i-1]));
+    const mv=all.slice(1), coR=mv.length?mv.filter(p=>p.coalescedCount>0).length/mv.length:0, coS=mv.length?mv.filter(p=>p.coalescedSpoofed).length/mv.length:0;
+    return {
+      strokes:S.length, points:all.length, durMs:Math.round(Math.max(0,last-first)), len:Math.round(len),
+      avgSpeed:Math.round(_avg(sp)*1000), maxSpeed:Math.round((sp.length?Math.max(...sp):0)*1000), avgJerk:+_avg(jerks).toFixed(3),
+      ldlj:+ldlj(S).toFixed(2), bell:Math.round(bellScore(S)*100), beta:+powerLawBeta(S).toFixed(2), subStroke:+subStroke(S).toFixed(1),
+      ballistic:+ballistic(S).toFixed(2), tremor:Math.round(tremorRatio(S)*100), dirEntropy:+dirEntropy(S).toFixed(2),
+      autoCorr1:+autoCorr1(S).toFixed(2), raf:Math.round(rafCadence(S)*100), coR:Math.round(coR*100), coS:Math.round(coS*100),
+      pressure:+_avg(all.map(p=>p.pressure)).toFixed(2), contactW:+_avg(all.map(p=>p.width)).toFixed(1), predicted:+_avg(mv.map(p=>p.predictedCount)).toFixed(1),
+    };
+  }
+  // ---- wireframe: resample strokes -> spine, then cross-brace into a mesh ----
+  function resample(P,step){ if(P.length<2) return P.map(p=>[p.x,p.y]);
+    const out=[[P[0].x,P[0].y]]; let acc=0;
+    for(let i=1;i<P.length;i++){ let ax=P[i-1].x,ay=P[i-1].y; const bx=P[i].x,by=P[i].y; let seg=Math.hypot(bx-ax,by-ay);
+      while(seg>0 && acc+seg>=step){ const t=(step-acc)/seg, nx=ax+(bx-ax)*t, ny=ay+(by-ay)*t; out.push([nx,ny]); ax=nx;ay=ny; seg=Math.hypot(bx-ax,by-ay); acc=0; }
+      acc+=seg; }
+    return out; }
+  function buildGraph(){
+    const step=Math.min(cw,ch)*0.10, nodes=[], feat=[], spine=[];
+    for(const s of strokes){ const rs=resample(s.pts,step), start=nodes.length;
+      for(let i=0;i<rs.length;i++){ nodes.push(rs[i]);
+        let isF=(i===0||i===rs.length-1);                 // ridge endings
+        if(!isF && i>0 && i<rs.length-1){ const a=rs[i-1],b=rs[i],c=rs[i+1];
+          const v1x=b[0]-a[0],v1y=b[1]-a[1],v2x=c[0]-b[0],v2y=c[1]-b[1], d1=Math.hypot(v1x,v1y)||1, d2=Math.hypot(v2x,v2y)||1;
+          const ang=Math.acos(Math.max(-1,Math.min(1,(v1x*v2x+v1y*v2y)/(d1*d2)))); if(ang>0.62) isF=true; } // corners
+        feat.push(isF); }
+      for(let i=1;i<rs.length;i++) spine.push([start+i-1,start+i]); }
+    const seen=new Set(spine.map(([a,b])=>Math.min(a,b)+'_'+Math.max(a,b))), mesh=[], R=step*3.2;
+    for(let i=0;i<nodes.length;i++){ const near=[];
+      for(let j=0;j<nodes.length;j++){ if(i===j)continue; const d=Math.hypot(nodes[i][0]-nodes[j][0],nodes[i][1]-nodes[j][1]); if(d<R)near.push([d,j]); }
+      near.sort((a,b)=>a[0]-b[0]); let add=0;
+      for(const [,j] of near){ if(add>=3)break; const key=Math.min(i,j)+'_'+Math.max(i,j); if(seen.has(key))continue; seen.add(key); mesh.push([i,j]); add++; } }
+    return {nodes,feat,spine,mesh};
+  }
+
+  // ---- CSI analysis ----
+  let A=null, rafId=0;
+  function startAnalysis(){
+    const g=buildGraph(), sc=scoreTrace(), bio=features(), nodes=g.nodes;
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const [x,y] of nodes){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+    if(!nodes.length){x0=cw*.35;x1=cw*.65;y0=ch*.30;y1=ch*.55;}
+    const nA=nodes.map((_,i)=>0.03+(i/Math.max(1,nodes.length))*0.40);
+    const sA=g.spine.map(([a,b])=>Math.max(nA[a]||0,nA[b]||0)+0.03);
+    const mA=g.mesh.map(([a,b])=>Math.max(nA[a]||0,nA[b]||0)+0.18);
+    let fk=0; const featNum=g.feat.map(f=>f?++fk:0);
+    A={nodes,feat:g.feat,featNum,spine:g.spine,mesh:g.mesh,sc,bio,box:[x0,y0,x1,y1],nA,sA,mA,t0:null};
+    mode='analyzing'; $('next').disabled=true; $('erase').disabled=true; $('subtitle').textContent='Analyzing trace…';
+    $('hint').style.visibility='hidden'; draw.style.pointerEvents='none'; draw.style.opacity='0.32';
+    cancelAnimationFrame(rafId); rafId=requestAnimationFrame(frame);
+  }
+  const clamp=t=>t<0?0:t>1?1:t, easeOut=t=>1-(1-t)*(1-t);
+  function frame(ts){ if(A.t0===null)A.t0=ts;
+    const DUR=reduce?1:1850, intro=clamp((ts-A.t0)/DUR);
+    if(intro>=1 && mode==='analyzing'){ mode='reviewed'; $('next').disabled=false; $('erase').disabled=false; $('subtitle').textContent='Analysis complete'; }
+    drawFx(intro,ts); rafId=requestAnimationFrame(frame); }
+  function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);}
+  function line(a,b,alpha,wd){ fctx.strokeStyle='rgba('+GREEN+','+alpha+')'; fctx.lineWidth=wd; fctx.beginPath(); fctx.moveTo(a[0],a[1]); fctx.lineTo(b[0],b[1]); fctx.stroke(); }
+  function drawFx(intro,ts){
+    const {nodes,feat,featNum,spine,mesh,sc,bio,box,nA,sA,mA}=A; clearFx();
+    // lock-on reticle
+    const rk=clamp((intro-0.4)/0.24), e=easeOut(rk);
+    if(rk>0){ const pad=20+(1-e)*72,[x0,y0,x1,y1]=box,bx=x0-pad,by=y0-pad,bw=(x1-x0)+pad*2,bh=(y1-y0)+pad*2,L=24;
+      fctx.strokeStyle='rgba('+GREEN+','+(0.30*e).toFixed(2)+')'; fctx.lineWidth=1; rr(fctx,bx,by,bw,bh,12); fctx.stroke();
+      fctx.strokeStyle='rgba('+GREEN+','+(0.9*e).toFixed(2)+')'; fctx.lineWidth=2;
+      for(const [cx,cy,sx,sy] of [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]]){ fctx.beginPath(); fctx.moveTo(cx,cy+sy*L); fctx.lineTo(cx,cy); fctx.lineTo(cx+sx*L,cy); fctx.stroke(); } }
+    // cross-brace mesh (wireframe over the shape)
+    for(let k=0;k<mesh.length;k++){ const [a,b]=mesh[k],loc=clamp((intro-mA[k])/0.2); if(loc<=0||!nodes[a]||!nodes[b])continue;
+      const ex=nodes[a][0]+(nodes[b][0]-nodes[a][0])*loc, ey=nodes[a][1]+(nodes[b][1]-nodes[a][1])*loc;
+      fctx.strokeStyle='rgba(150,245,205,'+(0.30*loc).toFixed(3)+')'; fctx.lineWidth=1;
+      fctx.beginPath(); fctx.moveTo(nodes[a][0],nodes[a][1]); fctx.lineTo(ex,ey); fctx.stroke(); }
+    // spine (bright, follows the ridge) + travelling pulses
+    for(let k=0;k<spine.length;k++){ const [a,b]=spine[k],loc=clamp((intro-sA[k])/0.16); if(loc<=0||!nodes[a]||!nodes[b])continue;
+      line(nodes[a],[nodes[a][0]+(nodes[b][0]-nodes[a][0])*loc,nodes[a][1]+(nodes[b][1]-nodes[a][1])*loc],(0.55*loc).toFixed(3),1.6);
+      if(loc>=1){ const pp=((ts/850)+k*0.17)%1, px=nodes[a][0]+(nodes[b][0]-nodes[a][0])*pp, py=nodes[a][1]+(nodes[b][1]-nodes[a][1])*pp;
+        fctx.fillStyle='rgba(210,255,228,.9)'; fctx.beginPath(); fctx.arc(px,py,1.7,0,7); fctx.fill(); } }
+    // AFIS minutiae markers — boxed crosshairs on feature points, small squares elsewhere
+    fctx.textAlign='left'; fctx.textBaseline='alphabetic'; fctx.font='8px '+MONO();
+    for(let i=0;i<nodes.length;i++){ const s=clamp((intro-nA[i])/0.14); if(s<=0)continue; const [x,y]=nodes[i], e=easeOut(s), F=feat[i];
+      const sz=(F?6.5:3.6)*e;
+      fctx.save(); fctx.shadowColor='rgba('+GREEN+',.85)'; fctx.shadowBlur=(F?11:5)*s;
+      fctx.strokeStyle='rgba('+GREEN+','+((F?0.95:0.7)*s).toFixed(2)+')'; fctx.lineWidth=F?1.4:1; fctx.strokeRect(x-sz,y-sz,sz*2,sz*2);
+      fctx.fillStyle='rgba(224,255,236,'+((F?1:0.85)*s).toFixed(2)+')'; fctx.beginPath(); fctx.arc(x,y,F?2:1.5,0,7); fctx.fill();
+      fctx.restore();
+      if(F && s>0.55){ const t=(sz+9); fctx.strokeStyle='rgba('+GREEN+','+(0.5*s).toFixed(2)+')'; fctx.lineWidth=1;
+        fctx.beginPath(); fctx.moveTo(x-t,y); fctx.lineTo(x+t,y); fctx.moveTo(x,y-t); fctx.lineTo(x,y+t); fctx.stroke();
+        fctx.fillStyle='rgba('+GREEN+','+(0.75*s).toFixed(2)+')'; fctx.fillText('M'+String(featNum[i]).padStart(2,'0'), x+t+2, y-t+2); } }
+    // corner HUD
+    fctx.textBaseline='top'; fctx.textAlign='left'; fctx.font='10px '+MONO(); fctx.fillStyle='rgba('+GREEN+',.7)';
+    fctx.fillText('NODES '+String(nodes.length).padStart(3,'0'), 24, ch*0.18);
+    fctx.fillText('LINKS '+String(spine.length+mesh.length).padStart(3,'0'), 24, ch*0.18+15);
+    fctx.fillText('SCAN  '+String(Math.round(intro*100)).padStart(3,'0')+'%', 24, ch*0.18+30);
+    fctx.textAlign='right'; fctx.fillStyle='rgba('+GREEN+',.32)';
+    for(let r=0;r<4;r++){ let h=''; for(let q=0;q<6;q++)h+=Math.floor(Math.random()*16).toString(16); fctx.fillText('0x'+h.toUpperCase(), cw-24, ch*0.18+r*15); }
+    // readout
+    if(mode==='reviewed') panel(sc,bio);
+    else { const val=Math.round(sc.pct*clamp(intro/0.92)); fctx.textAlign='center'; fctx.textBaseline='alphabetic';
+      fctx.fillStyle='rgba(210,255,228,.9)'; fctx.font='700 40px '+MONO(); fctx.fillText(val+'%', cw/2, ch-208);
+      fctx.font='10px '+MONO(); fctx.fillStyle='rgba('+GREEN+',.6)'; fctx.textBaseline='top'; fctx.fillText('CORRELATING TRACE', cw/2, ch-196); }
+  }
+  function panel(sc,b){
+    // curated top biometric features, two columns (7 rows each)
+    const colL=[['Avg speed', b.avgSpeed],['Max speed', b.maxSpeed],['Avg jerk', b.avgJerk],
+      ['Smoothness ldlj', b.ldlj],['Bell fit', b.bell+'%'],['Power-law β', b.beta],['Sub-strokes', b.subStroke]];
+    const colR=[['Tremor 8-12hz', b.tremor+'%'],['Dir entropy', b.dirEntropy],['V-autocorr', b.autoCorr1],
+      ['Ballistic', b.ballistic],['Raf cadence', b.raf+'%'],['Coalesced', b.coR+'%'],['Pressure', b.pressure]];
+    const rows=Math.max(colL.length,colR.length), lh=16.5, x=16, w=cw-32, ph=Math.round(72+rows*lh), y=Math.round((ch-ph)/2);
+    fctx.fillStyle='rgba(6,16,36,.82)'; rr(fctx,x,y,w,ph,12); fctx.fill();
+    fctx.strokeStyle='rgba('+GREEN+',.35)'; fctx.lineWidth=1; rr(fctx,x,y,w,ph,12); fctx.stroke();
+    // header
+    fctx.textBaseline='top'; fctx.textAlign='left'; fctx.font='10px '+MONO(); fctx.fillStyle='rgba('+GREEN+',.8)';
+    fctx.fillText('BIOMETRIC ANALYSIS', x+14, y+11); fctx.textAlign='right'; fctx.fillStyle='rgba(234,241,255,.4)';
+    fctx.fillText(b.strokes+' STROKES · '+b.points+' PTS · '+(b.durMs/1000).toFixed(1)+'S', x+w-14, y+11);
+    // match headline
+    fctx.textAlign='left'; fctx.textBaseline='alphabetic'; fctx.fillStyle='#eaf1ff'; fctx.font='700 26px '+MONO();
+    fctx.fillText(sc.pct+'%', x+14, y+46);
+    fctx.font='10px '+MONO(); fctx.fillStyle='rgba(234,241,255,.55)'; fctx.textBaseline='top';
+    fctx.fillText('MATCH · Δ'+((100-sc.pct)/100).toFixed(2)+' · COVER '+sc.cov+'%', x+70, y+40);
+    // two-column feature grid
+    const gy=y+62, cwid=(w-28)/2, xa=x+14, xb=x+14+cwid;
+    fctx.font='11px '+MONO();
+    const draw2=(col,cx)=>col.forEach((r,i)=>{ const ry=gy+i*lh; fctx.textAlign='left'; fctx.fillStyle='rgba(234,241,255,.55)'; fctx.fillText(r[0].toUpperCase(), cx, ry);
+      fctx.textAlign='right'; fctx.fillStyle='#dfe6ff'; fctx.fillText(String(r[1]), cx+cwid-8, ry); });
+    draw2(colL,xa); draw2(colR,xb);
+  }
+  function reset(newP){ cancelAnimationFrame(rafId); A=null; mode='idle'; clearFx(); clearDraw();
+    $('next').disabled=false; $('erase').disabled=false; $('hint').style.visibility=''; draw.style.pointerEvents=''; draw.style.opacity='';
+    if(newP){ prompt=pickPrompt(); renderGuide(); } setSubtitle(); }
+  $('erase').onclick=()=>{ if(mode==='idle') clearDraw(); else reset(false); };
+  $('next').onclick=()=>{ if(mode==='idle') startAnalysis(); else if(mode==='reviewed') reset(true); };
+
+  layout(); setSubtitle();
+  window.__letter=()=>prompt.v; window.__scan=startAnalysis; window.__mode=()=>mode;
+  window.__force=(t,v)=>{ prompt={t,v}; setSubtitle(); renderGuide(); clearDraw(); };
+})();
+</script>
+</body></html>

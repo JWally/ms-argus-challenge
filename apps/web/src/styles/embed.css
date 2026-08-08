@@ -21,6 +21,7 @@ body:has(.aegis-stage) {
   --module-violet-lit: #b7a0ff;
   --module-mint: #35e0a1;
   --module-red: #ff6b6b;
+  --module-neutral: #9aa3b8;
   --module-fg: #eceaf6;
   --module-muted: #8288a0;
   --module-state: var(--module-violet);
@@ -54,6 +55,10 @@ body:has(.aegis-stage) {
 
 .aegis.verified {
   --module-state: var(--module-mint);
+}
+
+.aegis.expired {
+  --module-state: var(--module-neutral);
 }
 
 .aegis.failed {
@@ -102,6 +107,7 @@ body:has(.aegis-stage) {
 }
 
 .verified .ax-dot,
+.expired .ax-dot,
 .failed .ax-dot {
   animation: none;
 }
@@ -147,6 +153,7 @@ body:has(.aegis-stage) {
 }
 
 .aegis.verified .ax-tile,
+.aegis.expired .ax-tile,
 .aegis.failed .ax-tile {
   opacity: 0;
 }
@@ -166,6 +173,7 @@ body:has(.aegis-stage) {
 }
 
 .verified .ax-seal,
+.expired .ax-seal,
 .failed .ax-seal {
   display: grid;
 }

@@ -31,7 +31,7 @@ describe('sealed drawing pictures', () => {
       width: 600,
       height: 270,
       framesPerPrompt: 4,
-      frameMs: 60,
+      frameMs: 30,
       pictures: expect.arrayContaining([expect.any(Uint8Array)]),
       profile: expect.objectContaining({
         pictureCount: 4,
@@ -63,7 +63,7 @@ describe('sealed drawing pictures', () => {
       encoding: 'png',
       compression: 'none',
       framesPerPrompt: 4,
-      frameMs: 60,
+      frameMs: 30,
       pictureCount: 12,
     });
     expect(JSON.stringify(sealed)).not.toContain('session-one');
@@ -122,7 +122,7 @@ describe('sealed drawing pictures', () => {
       width: 12,
       height: 9,
       framesPerPrompt: 2,
-      frameMs: 60,
+      frameMs: 30,
       pictures: expect.arrayContaining([expect.any(Uint8Array)]),
       profile: expect.objectContaining({
         encoding: 'gray8',
@@ -161,7 +161,7 @@ describe('sealed drawing pictures', () => {
     ]);
 
     expect(renderMask).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ encoding: 'gray8', framesPerPrompt: 2, frameMs: 60 });
+    expect(result).toMatchObject({ encoding: 'gray8', framesPerPrompt: 2, frameMs: 30 });
     expect(result.profile).toMatchObject({ cacheHits: 4, cacheMisses: 0 });
     expect(result.pictures[0]).toEqual(result.pictures[2]);
   });

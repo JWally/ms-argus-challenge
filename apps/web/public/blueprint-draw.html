@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Argus · handwriting-auth</title>
+<style>
+  :root{ --ink:#eaf1ff; --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.20); --green:#54f08a; --amber:#ffc861;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:#061024;font-family:var(--mono);color:var(--ink);overflow:hidden}
+  .phone{position:relative;width:100%;max-width:560px;height:100vh;height:100svh;margin:0 auto;overflow:hidden;
+    background:radial-gradient(120% 70% at 50% 20%, rgba(255,255,255,.10), rgba(255,255,255,0) 55%),
+               radial-gradient(150% 130% at 50% 120%, #0a2e6b, #0e3a86 42%);}
+  .grid{position:absolute;inset:0;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px),
+      linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+    background-size:26px 26px,26px 26px,130px 130px,130px 130px;
+    -webkit-mask-image:radial-gradient(120% 100% at 50% 42%, #000 66%, transparent 100%);
+            mask-image:radial-gradient(120% 100% at 50% 42%, #000 66%, transparent 100%);}
+  .vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 130px 34px rgba(3,10,28,.72)}
+  .corner{position:absolute;width:26px;height:26px;border:2px solid rgba(255,255,255,.5);z-index:2}
+  .tl{top:calc(20px + env(safe-area-inset-top));left:20px;border-right:0;border-bottom:0}
+  .tr{top:calc(20px + env(safe-area-inset-top));right:20px;border-left:0;border-bottom:0}
+  .bl{bottom:calc(120px + env(safe-area-inset-bottom));left:20px;border-right:0;border-top:0}
+  .br{bottom:calc(120px + env(safe-area-inset-bottom));right:20px;border-left:0;border-top:0}
+  .eyebrow{position:absolute;top:calc(34px + env(safe-area-inset-top));left:0;right:0;text-align:center;font-size:11px;
+    letter-spacing:.42em;text-transform:uppercase;color:rgba(234,241,255,.72);z-index:2}
+  .subtitle{position:absolute;top:calc(58px + env(safe-area-inset-top));left:0;right:0;text-align:center;font-size:15px;
+    letter-spacing:.04em;color:rgba(234,241,255,.92);z-index:2}
+  .subtitle b{color:var(--green);font-size:19px}
+  .titleblock{position:absolute;left:24px;bottom:calc(96px + env(safe-area-inset-bottom));font-size:9.5px;line-height:1.7;
+    letter-spacing:.14em;color:rgba(234,241,255,.5);text-transform:uppercase;z-index:2}
+  .titleblock b{color:rgba(234,241,255,.85)}
+  .hint{position:absolute;left:0;right:0;bottom:calc(104px + env(safe-area-inset-bottom));text-align:center;font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;color:rgba(234,241,255,.4);z-index:1}
+  /* per-round prompt: dims the screen, big white letter */
+  .prompt{position:absolute;inset:0;z-index:5;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    background:rgba(6,14,34,.5);pointer-events:none}
+  .prompt.show{display:flex}
+  .prompt .lbl{font-size:13px;letter-spacing:.34em;text-transform:uppercase;color:rgba(255,255,255,.9)}
+  .prompt canvas.big{display:block;animation:throb 1.7s ease-in-out infinite}
+  @keyframes throb{0%,100%{opacity:.4}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.prompt canvas.big{animation:none;opacity:.9}}
+  .prompt .sub{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-top:6px}
+  canvas.layer{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+  #draw{z-index:3}
+  #fx{z-index:4;pointer-events:none}
+  .bar{position:absolute;left:0;right:0;bottom:0;display:flex;gap:14px;padding:16px 22px;
+    padding-bottom:calc(18px + env(safe-area-inset-bottom));z-index:6;
+    background:linear-gradient(0deg, rgba(6,14,34,.92), rgba(6,14,34,0))}
+  button{flex:1;font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink);background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.5);border-radius:14px;
+    padding:16px 0;cursor:pointer;transition:.12s}
+  button:active{transform:translateY(1px)} button:disabled{opacity:.4}
+  #erase{border-color:rgba(255,255,255,.32);color:rgba(234,241,255,.82)}
+  #done{border-color:var(--green);color:var(--green)} #done:active{background:rgba(84,240,138,.12)}
+</style></head>
+<body>
+  <div class="phone" id="phone">
+    <div class="grid"></div>
+    <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+    <div class="eyebrow">Argus · handwriting-auth</div>
+    <div class="subtitle" id="subtitle">Draw the letter <b id="tgt">G</b></div>
+    <canvas id="draw" class="layer"></canvas>
+    <canvas id="fx"   class="layer"></canvas>
+    <div class="titleblock">Sheet 01 / 01<br><b>Rev A</b> · fig. 2<br>EMNIST-lite</div>
+    <div class="hint" id="hint">draw it with your finger</div>
+    <div class="prompt" id="prompt"><div class="lbl">Draw this letter</div><canvas class="big" id="promptCv"></canvas><div class="sub">start drawing to begin</div></div>
+    <div class="bar"><button id="erase">Erase</button><button id="done">Done</button></div>
+    <div class="vignette"></div>
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/ort.min.js"></script>
+<script>
+(() => {
+  const A26='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const $=id=>document.getElementById(id);
+  const phone=$('phone'), draw=$('draw'), fx=$('fx');
+  const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches, GREEN='84,240,138';
+  const MONO=()=>getComputedStyle(document.body).fontFamily;
+  let target='G', cw=0, ch=0, dpr=1, mode='idle';
+  const dctx=draw.getContext('2d',{willReadFrequently:true}), fctx=fx.getContext('2d');
+
+  function setupDraw(){ dctx.setTransform(dpr,0,0,dpr,0,0); dctx.lineCap='round'; dctx.lineJoin='round';
+    dctx.lineWidth=24; dctx.strokeStyle='#54f08a'; dctx.shadowColor='rgba('+GREEN+',.55)'; dctx.shadowBlur=8; }
+  const clearDraw=()=>{ dctx.save(); dctx.setTransform(1,0,0,1,0,0); dctx.clearRect(0,0,draw.width,draw.height); dctx.restore(); strokes=[]; };
+  const clearFx=()=>{ fctx.save(); fctx.setTransform(1,0,0,1,0,0); fctx.clearRect(0,0,fx.width,fx.height); fctx.restore(); };
+  function layout(){ cw=phone.clientWidth; ch=phone.clientHeight; dpr=Math.min(3,window.devicePixelRatio||1);
+    for(const c of [draw,fx]){ c.width=Math.round(cw*dpr); c.height=Math.round(ch*dpr); }
+    setupDraw(); clearDraw(); fctx.setTransform(dpr,0,0,dpr,0,0); clearFx(); }
+  addEventListener('resize',()=>{ if(mode==='idle') layout(); });
+
+  // ---- drawing + rich stroke capture ----
+  let strokes=[], cur=null, drawing=false, lx=0, ly=0;
+  const rel=(e,r)=>({x:e.clientX-r.left, y:e.clientY-r.top});
+  const rich=(e,r,ec,pred,spoof)=>({ x:e.clientX-r.left, y:e.clientY-r.top, t:e.timeStamp||performance.now(),
+    pressure:e.pressure||0, tiltX:e.tiltX||0, tiltY:e.tiltY||0, width:e.width||0, height:e.height||0, coalescedCount:ec, coalescedSpoofed:spoof, predictedCount:pred });
+  draw.addEventListener('pointerdown',e=>{ if(mode!=='idle')return; drawing=true; $('hint').style.display='none'; $('prompt').classList.remove('show'); const r=draw.getBoundingClientRect(); const p=rel(e,r); lx=p.x; ly=p.y;
+    cur={pts:[rich(e,r,0,0,false)]}; strokes.push(cur);
+    dctx.beginPath(); dctx.fillStyle='#54f08a'; dctx.arc(p.x,p.y,dctx.lineWidth/2,0,7); dctx.fill(); draw.setPointerCapture(e.pointerId); });
+  draw.addEventListener('pointermove',e=>{ if(!drawing)return; const r=draw.getBoundingClientRect();
+    const co=(typeof e.getCoalescedEvents==='function')?e.getCoalescedEvents():null, evs=(co&&co.length)?co:[e];
+    const pred=(typeof e.getPredictedEvents==='function')?((e.getPredictedEvents()||[]).length):0;
+    const spoof=evs.length>1 && evs.every(x=>x.timeStamp===evs[0].timeStamp);
+    for(const ce of evs){ const p=rel(ce,r); dctx.beginPath(); dctx.moveTo(lx,ly); dctx.lineTo(p.x,p.y); dctx.stroke(); lx=p.x; ly=p.y; cur.pts.push(rich(ce,r,evs.length,pred,spoof)); } });
+  const stop=()=>{drawing=false;}; draw.addEventListener('pointerup',stop); draw.addEventListener('pointercancel',stop);
+
+  // ---- EMNIST-lite recognizer: MNIST-style normalize -> cosine vs rendered glyphs ----
+  function normalize28(src,doBlur){               // src=ImageData (white ink on black)
+    const W=src.width,H=src.height,d=src.data; let minx=W,miny=H,maxx=0,maxy=0,any=false;
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){ if(d[(y*W+x)*4]>60){any=true; if(x<minx)minx=x;if(x>maxx)maxx=x;if(y<miny)miny=y;if(y>maxy)maxy=y;} }
+    const v=new Float32Array(784); if(!any) return v;
+    const bw=maxx-minx+1,bh=maxy-miny+1, scale=20/Math.max(bw,bh);
+    const sc=document.createElement('canvas'); sc.width=W; sc.height=H; sc.getContext('2d').putImageData(src,0,0);
+    const t=document.createElement('canvas'); t.width=28; t.height=28; const tc=t.getContext('2d');
+    tc.fillStyle='#000'; tc.fillRect(0,0,28,28); tc.imageSmoothingEnabled=true;
+    const dw=bw*scale, dh=bh*scale; tc.drawImage(sc,minx,miny,bw,bh,(28-dw)/2,(28-dh)/2,dw,dh);
+    const td=tc.getImageData(0,0,28,28).data; const raw=new Float32Array(784);
+    for(let i=0;i<784;i++) raw[i]=td[i*4]/255;
+    // center of mass -> shift toward centre
+    let mx=0,my=0,m=0; for(let y=0;y<28;y++)for(let x=0;x<28;x++){const p=raw[y*28+x];mx+=x*p;my+=y*p;m+=p;}
+    const sx=m?Math.round(14-mx/m):0, sy=m?Math.round(14-my/m):0;
+    for(let y=0;y<28;y++)for(let x=0;x<28;x++){const nx=x+sx,ny=y+sy; if(nx>=0&&nx<28&&ny>=0&&ny<28) v[ny*28+nx]=raw[y*28+x];}
+    if(!doBlur) return v;                          // un-blurred for the CNN; blurred for template cosine
+    const b=new Float32Array(784); for(let y=0;y<28;y++)for(let x=0;x<28;x++){let s=0,n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&xx<28&&yy>=0&&yy<28){s+=v[yy*28+xx];n++;}}b[y*28+x]=s/n;}
+    return b;
+  }
+  function userRaster(){ const W=draw.width,H=draw.height; const sc=document.createElement('canvas');sc.width=W;sc.height=H;const c=sc.getContext('2d');
+    c.fillStyle='#000';c.fillRect(0,0,W,H); c.strokeStyle='#fff';c.fillStyle='#fff';c.lineCap='round';c.lineJoin='round';c.lineWidth=Math.max(8,24*dpr);
+    for(const s of strokes){ const P=s.pts; if(!P.length)continue; c.beginPath(); c.moveTo(P[0].x*dpr,P[0].y*dpr); if(P.length===1){c.arc(P[0].x*dpr,P[0].y*dpr,c.lineWidth/2,0,7);c.fill();} for(let i=1;i<P.length;i++)c.lineTo(P[i].x*dpr,P[i].y*dpr); c.stroke(); }
+    return c.getImageData(0,0,W,H); }
+  const TFONTS=['700','800','italic 700']; let templates=null;
+  function glyphVec(ch,weight){ const O=document.createElement('canvas'); O.width=240;O.height=240; const o=O.getContext('2d');
+    o.fillStyle='#000';o.fillRect(0,0,240,240); o.fillStyle='#fff'; o.textAlign='center'; o.textBaseline='middle';
+    o.font=weight+' 170px system-ui,Arial,sans-serif'; o.fillText(ch,120,124); return normalize28(o.getImageData(0,0,240,240),true); }
+  function buildTemplates(){ templates=[]; for(const ch of A26) for(const w of TFONTS) templates.push({ch,v:glyphVec(ch,w)}); }
+  const cos=(a,b)=>{ let d=0,na=0,nb=0; for(let i=0;i<a.length;i++){d+=a[i]*b[i];na+=a[i]*a[i];nb+=b[i]*b[i];} return d/(Math.sqrt(na*nb)+1e-9); };
+  function recognizeTemplate(){ if(!templates) buildTemplates(); const uv=normalize28(userRaster(),true); const best={};
+    for(const t of templates){ const s=cos(uv,t.v); if(!(t.ch in best)||s>best[t.ch]) best[t.ch]=s; }
+    const arr=Object.entries(best).map(([ch,s])=>({ch,s})).sort((a,b)=>b.s-a.s);
+    const T=9, ex=arr.map(o=>Math.exp(o.s*T)), sum=ex.reduce((a,b)=>a+b,0); arr.forEach((o,i)=>o.conf=ex[i]/sum);
+    return arr; }
+  // ── real EMNIST CNN via onnxruntime-web; template matcher is the fallback until it loads ──
+  let ortSession=null;
+  (async()=>{ try{ if(typeof ort==='undefined')return; ort.env.wasm.numThreads=1; ortSession=await ort.InferenceSession.create('/emnist.onnx'); }catch(e){ ortSession=null; } })();
+  async function recognizeCNN(){ const uv=normalize28(userRaster(),false);
+    const out=await ortSession.run({[ortSession.inputNames[0]]:new ort.Tensor('float32',uv,[1,1,28,28])});
+    const logits=out[ortSession.outputNames[0]].data; let mx=-1e9; for(const v of logits) if(v>mx)mx=v;
+    const ex=[]; let sum=0; for(let i=0;i<26;i++){ const e=Math.exp(logits[i]-mx); ex.push(e); sum+=e; }
+    return A26.map((ch,i)=>({ch,conf:ex[i]/sum,s:ex[i]/sum})).sort((a,b)=>b.conf-a.conf); }
+  async function recognizeAsync(){ if(ortSession){ try{ return {arr:await recognizeCNN(),m:'cnn'}; }catch(e){} } return {arr:recognizeTemplate(),m:'tpl'}; }
+
+  // ---- full biometric feature set (ported from ms-argus-bio) ----
+  const _avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
+  const _var=a=>{const m=_avg(a);return a.length?a.reduce((s,v)=>s+(v-m)**2,0)/a.length:0;};
+  const _lin=(xs,ys)=>{const n=xs.length;if(n<3)return{slope:0,r2:0};const mx=_avg(xs),my=_avg(ys);let xy=0,xx=0,yy=0;for(let i=0;i<n;i++){const dx=xs[i]-mx,dy=ys[i]-my;xy+=dx*dy;xx+=dx*dx;yy+=dy*dy;}return{slope:xx>0?xy/xx:0,r2:xx>0&&yy>0?xy*xy/(xx*yy):0};};
+  const _spec=(sig,f,sr)=>{const N=sig.length;if(!N)return 0;let re=0,im=0;for(let n=0;n<N;n++){const ph=2*Math.PI*f*n/sr;re+=sig[n]*Math.cos(ph);im-=sig[n]*Math.sin(ph);}return(re*re+im*im)/(N*N);};
+  const _speeds=S=>{const o=[];for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt>0)o.push(Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt);}}return o;};
+  function powerLawBeta(S){const V=[],R=[];for(const s of S){const p=s.pts;for(let i=1;i<p.length-1;i++){const dt=p[i+1].t-p[i].t;if(dt<1)continue;const dx1=p[i].x-p[i-1].x,dy1=p[i].y-p[i-1].y,dx2=p[i+1].x-p[i].x,dy2=p[i+1].y-p[i].y;const sp=Math.hypot(dx2,dy2)/dt,l1=Math.hypot(dx1,dy1),l2=Math.hypot(dx2,dy2);if(l1<0.5||l2<0.5||sp<0.01)continue;const cur=Math.abs(dx1*dy2-dy1*dx2)/(l1*l2);if(cur>0.001){V.push(Math.log(sp));R.push(Math.log(1/cur));}}}return _lin(R,V).slope;}
+  function tremorRatio(S){const sm=[];for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt<1)continue;sm.push({t:P[i].t,v:Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt});}}if(sm.length<20)return 0;const SR=100,t0=sm[0].t,t1=sm[sm.length-1].t,dur=t1-t0;if(dur<100)return 0;const n=Math.min(Math.floor(dur/1000*SR),512);if(n<20)return 0;const u=[];let si=0;for(let i=0;i<n;i++){const t=t0+i*1000/SR;while(si<sm.length-1&&sm[si+1].t<t)si++;if(si>=sm.length-1)u.push(sm[sm.length-1].v);else{const f=(t-sm[si].t)/(sm[si+1].t-sm[si].t);u.push(sm[si].v*(1-f)+sm[si+1].v*f);}}const m=_avg(u),c=u.map(v=>v-m);let tot=0,tr=0;for(let f=1;f<=20;f++){const pw=_spec(c,f,SR);tot+=pw;if(f>=8&&f<=12)tr+=pw;}return tot>0?tr/tot:0;}
+  function bellScore(S){let sum=0,cnt=0;for(const s of S){const P=s.pts;if(P.length<5)continue;const v=[];for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;v.push(dt>0?Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt:0);}const mx=Math.max(...v);if(!mx)continue;const nn=v.map(x=>x/mx);let er=0;for(let i=0;i<nn.length;i++)er+=Math.abs(nn[i]-Math.sin(Math.PI*((i+0.5)/nn.length)));sum+=1-er/nn.length;cnt++;}return cnt?sum/cnt:0;}
+  function ldlj(S){let J=0,L=0,T=0;for(const s of S){const p=s.pts;if(p.length<4)continue;const dur=p[p.length-1].t-p[0].t;if(dur<10)continue;let pl=0;const sp=[];for(let i=1;i<p.length;i++){const d=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);pl+=d;const dt=p[i].t-p[i-1].t;if(dt>0)sp.push({s:d/dt,t:p[i].t});}if(pl<1||sp.length<3)continue;let ji=0;for(let i=1;i<sp.length-1;i++){const d1=sp[i].t-sp[i-1].t,d2=sp[i+1].t-sp[i].t;if(d1<1||d2<1)continue;const a1=(sp[i].s-sp[i-1].s)/d1,a2=(sp[i+1].s-sp[i].s)/d2,da=(d1+d2)/2,jk=(a2-a1)/da;ji+=jk*jk*da;}J+=ji;L+=pl;T+=dur;}if(L<1||T<10)return 0;return Math.log(Math.sqrt(J*Math.pow(T,5)/(L*L))+1);}
+  function subStroke(S){let tp=0,c=0;for(const s of S){const P=s.pts;if(P.length<5)continue;const sp=[];for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;sp.push(dt<1?0:Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt);}const sm=sp.map((_,i)=>{const lo=Math.max(0,i-1),hi=Math.min(sp.length-1,i+1);let s=0;for(let j=lo;j<=hi;j++)s+=sp[j];return s/(hi-lo+1);});let pk=0;for(let i=1;i<sm.length-1;i++)if(sm[i]>sm[i-1]&&sm[i]>sm[i+1])pk++;tp+=pk;c++;}return c?tp/c:0;}
+  function ballistic(S){const pk=[];for(const s of S){const P=s.pts;if(P.length<5)continue;let mx=0,mi=0;for(let i=1;i<P.length;i++){const dt=P[i].t-P[i-1].t;if(dt<1)continue;const sp=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/dt;if(sp>mx){mx=sp;mi=i;}}if(mx>0)pk.push(mi/P.length);}return _avg(pk);}
+  function autoCorr1(S){const sp=_speeds(S);if(sp.length<6)return 0;const m=_avg(sp);let den=0;for(const v of sp)den+=(v-m)**2;if(!den)return 0;let num=0;for(let i=0;i<sp.length-1;i++)num+=(sp[i]-m)*(sp[i+1]-m);return num/den;}
+  function dirEntropy(S){const B=16,bins=new Array(B).fill(0);let tot=0;for(const s of S){const P=s.pts;for(let i=1;i<P.length;i++){const dx=P[i].x-P[i-1].x,dy=P[i].y-P[i-1].y;if(Math.abs(dx)<0.01&&Math.abs(dy)<0.01)continue;let a=Math.atan2(dy,dx);if(a<0)a+=2*Math.PI;bins[Math.min(B-1,Math.floor(a/(2*Math.PI)*B))]++;tot++;}}if(!tot)return 0;let e=0;for(const c of bins)if(c>0){const p=c/tot;e-=p*Math.log2(p);}return e;}
+  function rafCadence(S){const FP=[16.667,11.111,8.333,6.944],TOL=2.5,dts=[];for(const s of S)for(let i=1;i<s.pts.length;i++){const dt=s.pts[i].t-s.pts[i-1].t;if(dt>0)dts.push(dt);}if(!dts.length)return 0;let best=0;for(const fp of FP){let on=0;for(const dt of dts){const r=dt%fp;if(r<TOL||fp-r<TOL)on++;}best=Math.max(best,on/dts.length);}return best;}
+  function features(){ const S=strokes; let all=[]; for(const s of S) all=all.concat(s.pts); const sp=_speeds(S);
+    let len=0,first=Infinity,last=-Infinity; for(const s of S){const P=s.pts;if(!P.length)continue;first=Math.min(first,P[0].t);last=Math.max(last,P[P.length-1].t);for(let i=1;i<P.length;i++)len+=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y);}
+    const accs=[];for(const s of S){const P=s.pts;for(let i=2;i<P.length;i++){const d1=P[i-1].t-P[i-2].t,d2=P[i].t-P[i-1].t;if(d1>0&&d2>0){const s1=Math.hypot(P[i-1].x-P[i-2].x,P[i-1].y-P[i-2].y)/d1,s2=Math.hypot(P[i].x-P[i-1].x,P[i].y-P[i-1].y)/d2;accs.push((s2-s1)/((d1+d2)/2));}}}
+    const jerks=[];for(let i=1;i<accs.length;i++)jerks.push(Math.abs(accs[i]-accs[i-1]));
+    const mv=all.slice(1), coR=mv.length?mv.filter(p=>p.coalescedCount>0).length/mv.length:0;
+    return { strokes:S.length, points:all.length, durMs:Math.round(Math.max(0,last-first)), len:Math.round(len),
+      avgSpeed:Math.round(_avg(sp)*1000), maxSpeed:Math.round((sp.length?Math.max(...sp):0)*1000), avgJerk:+_avg(jerks).toFixed(3),
+      ldlj:+ldlj(S).toFixed(2), bell:Math.round(bellScore(S)*100), beta:+powerLawBeta(S).toFixed(2), subStroke:+subStroke(S).toFixed(1),
+      ballistic:+ballistic(S).toFixed(2), tremor:Math.round(tremorRatio(S)*100), dirEntropy:+dirEntropy(S).toFixed(2),
+      autoCorr1:+autoCorr1(S).toFixed(2), raf:Math.round(rafCadence(S)*100), coR:Math.round(coR*100),
+      pressure:+_avg(all.map(p=>p.pressure)).toFixed(2) }; }
+
+  // ---- CSI analysis animation ----
+  function resample(P,step){ if(P.length<2) return P.map(p=>[p.x,p.y]); const out=[[P[0].x,P[0].y]]; let acc=0;
+    for(let i=1;i<P.length;i++){ let ax=P[i-1].x,ay=P[i-1].y; const bx=P[i].x,by=P[i].y; let seg=Math.hypot(bx-ax,by-ay);
+      while(seg>0 && acc+seg>=step){ const t=(step-acc)/seg, nx=ax+(bx-ax)*t, ny=ay+(by-ay)*t; out.push([nx,ny]); ax=nx;ay=ny; seg=Math.hypot(bx-ax,by-ay); acc=0; } acc+=seg; } return out; }
+  function buildGraph(){ const step=Math.min(cw,ch)*0.085, nodes=[], feat=[], spine=[];
+    for(const s of strokes){ const rs=resample(s.pts,step), start=nodes.length;
+      for(let i=0;i<rs.length;i++){ nodes.push(rs[i]); let f=(i===0||i===rs.length-1);
+        if(!f&&i>0&&i<rs.length-1){const a=rs[i-1],b=rs[i],c=rs[i+1],v1x=b[0]-a[0],v1y=b[1]-a[1],v2x=c[0]-b[0],v2y=c[1]-b[1],d1=Math.hypot(v1x,v1y)||1,d2=Math.hypot(v2x,v2y)||1;if(Math.acos(Math.max(-1,Math.min(1,(v1x*v2x+v1y*v2y)/(d1*d2))))>0.62)f=true;} feat.push(f); }
+      for(let i=1;i<rs.length;i++) spine.push([start+i-1,start+i]); }
+    const seen=new Set(spine.map(([a,b])=>Math.min(a,b)+'_'+Math.max(a,b))),mesh=[],R=step*3.2;
+    for(let i=0;i<nodes.length;i++){const near=[];for(let j=0;j<nodes.length;j++){if(i===j)continue;const d=Math.hypot(nodes[i][0]-nodes[j][0],nodes[i][1]-nodes[j][1]);if(d<R)near.push([d,j]);}near.sort((a,b)=>a[0]-b[0]);let add=0;for(const [,j] of near){if(add>=3)break;const key=Math.min(i,j)+'_'+Math.max(i,j);if(seen.has(key))continue;seen.add(key);mesh.push([i,j]);add++;}}
+    return {nodes,feat,spine,mesh}; }
+
+  let AN=null, rafId=0;
+  async function startAnalysis(){ if(mode!=='idle'||!strokes.length) return; const g=buildGraph(), bio=features(); const RR=await recognizeAsync(), rec=RR.arr;
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; for(const [x,y] of g.nodes){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y);}
+    const nA=g.nodes.map((_,i)=>0.03+(i/Math.max(1,g.nodes.length))*0.4), sA=g.spine.map(([a,b])=>Math.max(nA[a]||0,nA[b]||0)+0.03), mA=g.mesh.map(([a,b])=>Math.max(nA[a]||0,nA[b]||0)+0.18);
+    let fk=0; const featNum=g.feat.map(f=>f?++fk:0);
+    AN={...g,featNum,rec,recMode:RR.m,bio,box:[x0,y0,x1,y1],nA,sA,mA,t0:null};
+    mode='analyzing'; $('done').disabled=true; $('erase').disabled=true; $('subtitle').innerHTML='Analyzing handwriting…'; draw.style.pointerEvents='none'; draw.style.opacity='0.32';
+    cancelAnimationFrame(rafId); rafId=requestAnimationFrame(frame); }
+  const clamp=t=>t<0?0:t>1?1:t, easeOut=t=>1-(1-t)*(1-t);
+  function frame(ts){ if(AN.t0===null)AN.t0=ts; const DUR=reduce?1:1850, intro=clamp((ts-AN.t0)/DUR);
+    if(intro>=1&&mode==='analyzing'){ mode='reviewed'; $('done').disabled=false; $('erase').disabled=false; $('subtitle').innerHTML='Recognition complete'; }
+    drawFx(intro,ts); rafId=requestAnimationFrame(frame); }
+  function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);}
+  function drawFx(intro,ts){ const {nodes,feat,featNum,spine,mesh,box,nA,sA,mA,rec,recMode,bio}=AN; clearFx();
+    const rk=clamp((intro-0.4)/0.24),e=easeOut(rk);
+    if(rk>0){const pad=20+(1-e)*72,[x0,y0,x1,y1]=box,bx=x0-pad,by=y0-pad,bw=(x1-x0)+pad*2,bh=(y1-y0)+pad*2,L=24;
+      fctx.strokeStyle='rgba('+GREEN+','+(0.3*e).toFixed(2)+')';fctx.lineWidth=1;rr(fctx,bx,by,bw,bh,12);fctx.stroke();
+      fctx.strokeStyle='rgba('+GREEN+','+(0.9*e).toFixed(2)+')';fctx.lineWidth=2;for(const [ax,ay,sx,sy] of [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]]){fctx.beginPath();fctx.moveTo(ax,ay+sy*L);fctx.lineTo(ax,ay);fctx.lineTo(ax+sx*L,ay);fctx.stroke();}}
+    for(let k=0;k<mesh.length;k++){const [a,b]=mesh[k],loc=clamp((intro-mA[k])/0.2);if(loc<=0)continue;const ex=nodes[a][0]+(nodes[b][0]-nodes[a][0])*loc,ey=nodes[a][1]+(nodes[b][1]-nodes[a][1])*loc;fctx.strokeStyle='rgba(150,245,205,'+(0.3*loc).toFixed(3)+')';fctx.lineWidth=1;fctx.beginPath();fctx.moveTo(nodes[a][0],nodes[a][1]);fctx.lineTo(ex,ey);fctx.stroke();}
+    for(let k=0;k<spine.length;k++){const [a,b]=spine[k],loc=clamp((intro-sA[k])/0.16);if(loc<=0)continue;const ex=nodes[a][0]+(nodes[b][0]-nodes[a][0])*loc,ey=nodes[a][1]+(nodes[b][1]-nodes[a][1])*loc;fctx.strokeStyle='rgba('+GREEN+','+(0.55*loc).toFixed(3)+')';fctx.lineWidth=1.6;fctx.beginPath();fctx.moveTo(nodes[a][0],nodes[a][1]);fctx.lineTo(ex,ey);fctx.stroke();if(loc>=1){const pp=((ts/850)+k*0.17)%1;fctx.fillStyle='rgba(210,255,228,.9)';fctx.beginPath();fctx.arc(nodes[a][0]+(nodes[b][0]-nodes[a][0])*pp,nodes[a][1]+(nodes[b][1]-nodes[a][1])*pp,1.7,0,7);fctx.fill();}}
+    fctx.textAlign='left';fctx.textBaseline='alphabetic';fctx.font='8px '+MONO();
+    for(let i=0;i<nodes.length;i++){const s=clamp((intro-nA[i])/0.14);if(s<=0)continue;const [x,y]=nodes[i],F=feat[i],sz=(F?6.5:3.6)*easeOut(s);
+      fctx.save();fctx.shadowColor='rgba('+GREEN+',.85)';fctx.shadowBlur=(F?11:5)*s;fctx.strokeStyle='rgba('+GREEN+','+((F?0.95:0.7)*s).toFixed(2)+')';fctx.lineWidth=F?1.4:1;fctx.strokeRect(x-sz,y-sz,sz*2,sz*2);fctx.fillStyle='rgba(224,255,236,'+((F?1:0.85)*s).toFixed(2)+')';fctx.beginPath();fctx.arc(x,y,F?2:1.5,0,7);fctx.fill();fctx.restore();
+      if(F&&s>0.55){const tt=sz+9;fctx.strokeStyle='rgba('+GREEN+','+(0.5*s).toFixed(2)+')';fctx.lineWidth=1;fctx.beginPath();fctx.moveTo(x-tt,y);fctx.lineTo(x+tt,y);fctx.moveTo(x,y-tt);fctx.lineTo(x,y+tt);fctx.stroke();fctx.fillStyle='rgba('+GREEN+','+(0.75*s).toFixed(2)+')';fctx.fillText('M'+String(featNum[i]).padStart(2,'0'),x+tt+2,y-tt+2);}}
+    // HUD
+    fctx.textBaseline='top';fctx.textAlign='left';fctx.font='10px '+MONO();fctx.fillStyle='rgba('+GREEN+',.7)';
+    fctx.fillText('NODES '+String(nodes.length).padStart(3,'0'),24,ch*0.18);fctx.fillText('LINKS '+String(spine.length+mesh.length).padStart(3,'0'),24,ch*0.18+15);fctx.fillText('SCAN  '+String(Math.round(intro*100)).padStart(3,'0')+'%',24,ch*0.18+30);
+    fctx.textAlign='right';fctx.fillStyle='rgba('+GREEN+',.32)';for(let r=0;r<4;r++){let h='';for(let q=0;q<6;q++)h+=Math.floor(Math.random()*16).toString(16);fctx.fillText('0x'+h.toUpperCase(),cw-24,ch*0.18+r*15);}
+    if(mode==='reviewed') panel(rec,bio,recMode);
+    else { fctx.textAlign='center';fctx.textBaseline='alphabetic';fctx.fillStyle='rgba(210,255,228,.9)';fctx.font='700 20px '+MONO();fctx.fillText('CLASSIFYING…',cw/2,ch-196);} }
+
+  function panel(rec,bio,recMode){
+    const tEntry=rec.find(o=>o.ch===target), isTop=rec[0].ch===target;
+    let matchPct,good,dist;
+    if(recMode==='cnn'){ const s=tEntry.conf; matchPct=Math.round(s*100); good=isTop&&s>=0.5; dist=Math.max(0,1-s); }
+    else { const s=tEntry.s; matchPct=Math.round(Math.max(0,Math.min(1,(s-0.35)/0.5))*100); good=isTop&&matchPct>=45; dist=Math.max(0,1-s); }
+    const accent=good?GREEN:'255,200,97';
+    const colL=[['Avg speed',bio.avgSpeed],['Max speed',bio.maxSpeed],['Avg jerk',bio.avgJerk],['Smoothness',bio.ldlj],['Bell fit',bio.bell+'%'],['Power-law β',bio.beta],['Sub-strokes',bio.subStroke]];
+    const colR=[['Tremor 8-12hz',bio.tremor+'%'],['Dir entropy',bio.dirEntropy],['V-autocorr',bio.autoCorr1],['Ballistic',bio.ballistic],['Raf cadence',bio.raf+'%'],['Coalesced',bio.coR+'%'],['Pressure',bio.pressure]];
+    const rows=Math.max(colL.length,colR.length), lh=15.5, x=16, w=cw-32, headH=118, gap=20, ph=Math.round(headH+gap+8+rows*lh), y=Math.round((ch-ph)/2);
+    fctx.fillStyle='rgba(6,16,36,.92)';rr(fctx,x,y,w,ph,12);fctx.fill();
+    fctx.strokeStyle='rgba('+accent+',.5)';fctx.lineWidth=1.5;rr(fctx,x,y,w,ph,12);fctx.stroke();
+    // header
+    fctx.textBaseline='top';fctx.textAlign='left';fctx.font='10px '+MONO();fctx.fillStyle='rgba(234,241,255,.55)';fctx.fillText('HANDWRITING · '+(recMode==='cnn'?'EMNIST CNN':'EMNIST-LITE'),x+14,y+12);
+    fctx.textAlign='right';fctx.fillStyle='rgba('+accent+',.9)';fctx.font='700 10px '+MONO();fctx.fillText(good?'GOOD ENOUGH':'NOT QUITE',x+w-14,y+12);
+    // big target + match
+    fctx.textAlign='left';fctx.textBaseline='alphabetic';fctx.fillStyle='#fff';fctx.font='800 54px '+MONO();fctx.fillText(target,x+18,y+84);
+    fctx.fillStyle='#fff';fctx.font='700 30px '+MONO();fctx.fillText(matchPct+'%',x+90,y+70);
+    fctx.font='10px '+MONO();fctx.fillStyle='rgba(234,241,255,.6)';fctx.textBaseline='top';fctx.fillText('MATCH TO “'+target+'”',x+90,y+78);
+    fctx.fillStyle=good?'rgba(84,240,138,.95)':'rgba(255,200,97,.95)';fctx.font='700 12px '+MONO();fctx.fillText(good?'✓  GOOD ENOUGH':'✗  '+Math.round(dist*100)+'% OFF · Δ'+dist.toFixed(2),x+90,y+94);
+    const bx=x+18,bw=w-36,by=y+110; fctx.fillStyle='rgba(255,255,255,.12)';rr(fctx,bx,by,bw,8,4);fctx.fill();
+    fctx.fillStyle='rgba('+accent+',.95)';rr(fctx,bx,by,Math.max(4,bw*(matchPct/100)),8,4);fctx.fill();
+    // full biometric grid
+    const gy=y+headH+gap, cwid=(w-28)/2, xa=x+14, xb=x+14+cwid;
+    fctx.strokeStyle='rgba(255,255,255,.12)';fctx.beginPath();fctx.moveTo(x+14,gy-10);fctx.lineTo(x+w-14,gy-10);fctx.stroke();
+    fctx.font='11px '+MONO();
+    const draw2=(col,cx)=>col.forEach((r,i)=>{const rry=gy+i*lh;fctx.textAlign='left';fctx.fillStyle='rgba(234,241,255,.5)';fctx.fillText(String(r[0]).toUpperCase(),cx,rry);fctx.textAlign='right';fctx.fillStyle='#dfe6ff';fctx.fillText(String(r[1]),cx+cwid-8,rry);});
+    draw2(colL,xa); draw2(colR,xb);
+  }
+
+  function drawPrompt(){ const c=$('promptCv'), sz=Math.round(Math.min(cw,ch)*0.66), d=Math.min(3,window.devicePixelRatio||1);
+    c.width=sz*d; c.height=sz*d; c.style.width=sz+'px'; c.style.height=sz+'px'; const x=c.getContext('2d'); x.setTransform(d,0,0,d,0,0); x.clearRect(0,0,sz,sz);
+    x.textAlign='center'; x.textBaseline='middle'; x.font='700 '+Math.floor(sz*0.72)+'px system-ui,-apple-system,Arial,sans-serif';
+    const px=sz/2, py=sz/2+sz*0.02;
+    x.fillStyle='rgba(255,255,255,0.09)'; x.fillText(target,px,py);                         // faint ghost fill
+    x.strokeStyle='rgba(255,255,255,0.95)'; x.lineJoin='round'; x.lineCap='round'; x.lineWidth=Math.max(3,sz*0.02);
+    x.setLineDash([sz*0.055, sz*0.05]); x.shadowColor='rgba(255,255,255,.3)'; x.shadowBlur=sz*0.025;  // big-chief dashed outline
+    x.strokeText(target,px,py); x.setLineDash([]); }
+  function showPrompt(){ drawPrompt(); $('prompt').classList.add('show'); }
+  function reset(next){ cancelAnimationFrame(rafId); AN=null; mode='idle'; clearFx(); clearDraw();
+    $('done').disabled=false; $('erase').disabled=false; draw.style.pointerEvents=''; draw.style.opacity=''; $('hint').style.display='';
+    if(next){ target=A26[Math.floor(Math.random()*26)]; }
+    $('subtitle').innerHTML='Draw the letter <b>'+target+'</b>'; showPrompt(); }
+  $('erase').onclick=()=>{ if(mode==='idle') clearDraw(); else reset(false); };
+  $('done').onclick=()=>{ if(mode==='idle') startAnalysis(); else if(mode==='reviewed') reset(true); };
+
+  layout(); buildTemplates(); showPrompt();
+  window.__target=()=>target; window.__set=t=>{target=t;$('subtitle').innerHTML='Draw the letter <b>'+t+'</b>';showPrompt();}; window.__done=startAnalysis;
+})();
+</script>
+</body></html>

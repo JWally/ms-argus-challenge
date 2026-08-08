@@ -4,7 +4,7 @@ import { embedPresentation } from './embed-presentation.js';
 describe('Pair-compatible embed presentation', () => {
   it.each([
     [
-      { status: 'Scan with your phone', completion: null },
+      { status: 'Scan with your phone', completion: null, expired: false },
       {
         phase: 'scanning',
         title: 'Scan with your phone',
@@ -13,7 +13,7 @@ describe('Pair-compatible embed presentation', () => {
       },
     ],
     [
-      { status: 'Phone connected', completion: null },
+      { status: 'Phone connected', completion: null, expired: false },
       {
         phase: 'pairing',
         title: 'Phone connected',
@@ -22,7 +22,7 @@ describe('Pair-compatible embed presentation', () => {
       },
     ],
     [
-      { status: 'Phone connected', completion: 'paired' as const },
+      { status: 'Phone connected', completion: 'paired' as const, expired: false },
       {
         phase: 'verified',
         title: 'Verified',
@@ -31,12 +31,21 @@ describe('Pair-compatible embed presentation', () => {
       },
     ],
     [
-      { status: 'Phone connected', completion: 'failed' as const },
+      { status: 'Phone connected', completion: 'failed' as const, expired: false },
       {
         phase: 'failed',
         title: "Couldn't verify",
         instruction: 'Try again on a trusted network',
         trackStatus: 'CHECK ENDED',
+      },
+    ],
+    [
+      { status: 'Scan with your phone', completion: 'failed' as const, expired: true },
+      {
+        phase: 'expired',
+        title: 'Session expired',
+        instruction: 'Please reload to start a new challenge.',
+        trackStatus: 'SESSION ENDED',
       },
     ],
   ])('maps transport state to a stable visual state', (input, expected) => {

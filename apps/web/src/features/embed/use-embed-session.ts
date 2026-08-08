@@ -4,12 +4,18 @@ import type { DesktopController } from '../desktop/desktop-types.js';
 import type { RenderedQrFrames } from '../qr/qr-protocol.js';
 import { userFacingError } from '../../shared/http.js';
 import type { EmbedConfig } from './embed-config.js';
+import { measuredEmbedHeight } from './embed-size.js';
 
 interface EmbedViewState {
   status: string;
   qr: RenderedQrFrames | null;
   completion: 'paired' | 'failed' | null;
   error: string | null;
+  expired: boolean;
+}
+
+function isExpiredError(cause: unknown): boolean {
+  return cause instanceof Error && cause.message === 'session_expired';
 }
 
 function postToHost(hostOrigin: string | null, payload: Record<string, unknown>): void {
@@ -22,7 +28,7 @@ export function useHostSize(root: RefObject<HTMLElement | null>, hostOrigin: str
     const element = root.current;
     if (!element) return;
     const observer = new ResizeObserver(() => {
-      postToHost(hostOrigin, { event: 'size', height: element.scrollHeight });
+      postToHost(hostOrigin, { event: 'size', height: measuredEmbedHeight(element) });
     });
     observer.observe(element);
     return () => observer.disconnect();
@@ -63,6 +69,7 @@ export function useEmbedSession(config: EmbedConfig | null): EmbedViewState {
     qr: null,
     completion: null,
     error: null,
+    expired: false,
   });
   useEffect(() => {
     if (!config) return;
@@ -75,7 +82,11 @@ export function useEmbedSession(config: EmbedConfig | null): EmbedViewState {
         postToHost(config.hostOrigin, { event: 'connected' });
       },
       error: (cause: unknown) =>
-        setView((current) => ({ ...current, error: userFacingError(cause) })),
+        setView((current) => ({
+          ...current,
+          error: userFacingError(cause),
+          expired: isExpiredError(cause),
+        })),
     };
     void runEmbedSession(
       config,
@@ -125,7 +136,11 @@ async function runEmbedSession(
     });
   } catch (cause) {
     if (isCancelled() || (cause instanceof Error && cause.message === 'cancelled')) return;
-    update((current) => ({ ...current, error: userFacingError(cause) }));
+    update((current) => ({
+      ...current,
+      error: userFacingError(cause),
+      expired: isExpiredError(cause),
+    }));
     postToHost(config.hostOrigin, { event: 'error', message: 'challenge_failed' });
   }
 }

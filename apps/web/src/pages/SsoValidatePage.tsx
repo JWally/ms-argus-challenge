@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SsoProofActions } from '../features/sso/SsoProofActions.js';
+import { SsoDrawingInterstitial } from '../features/sso/SsoDrawingInterstitial.js';
 import { validationDestination, type SsoValidateResponse } from '../features/sso/sso-client.js';
 import { loadSsoState, type SsoBrowserState } from '../features/sso/sso-state.js';
 import {
@@ -112,9 +113,10 @@ function useValidationController() {
     needsProof: false,
     validating: Boolean(state && returnCode),
   });
+  const [destination, setDestination] = useState<string | null>(null);
   const finish = useCallback(
     (result: SsoValidateResponse) => {
-      if (state) window.location.replace(validationDestination(state, result));
+      if (state) setDestination(validationDestination(state, result));
     },
     [state]
   );
@@ -125,7 +127,7 @@ function useValidationController() {
     },
     [finish, returnCode, state, view.validating]
   );
-  return { state, view, prove, missing: !state || !returnCode };
+  return { destination, state, view, prove, missing: !state || !returnCode };
 }
 
 function ValidationAction({
@@ -158,6 +160,17 @@ function ValidationAction({
 export function SsoValidatePage() {
   const controller = useValidationController();
   const copy = validationCopy(controller.view, controller.missing);
+  if (!controller.missing && !controller.view.needsProof && !controller.view.error) {
+    return (
+      <SsoDrawingInterstitial
+        step={3}
+        ready={Boolean(controller.destination)}
+        onContinue={() => {
+          if (controller.destination) window.location.replace(controller.destination);
+        }}
+      />
+    );
+  }
   return (
     <SsoStatusPage
       step={3}

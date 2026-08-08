@@ -1,6 +1,8 @@
 interface BioPictureDot {
   x: number;
   y: number;
+  backgroundX: number;
+  backgroundY: number;
   size: number;
   radius: number;
   hiddenSize: number;
@@ -8,6 +10,8 @@ interface BioPictureDot {
   on: string;
   hidden: string;
   isLetter: boolean;
+  isGlyphArea: boolean;
+  isVisibleBackground: boolean;
   isVisibleLetter: boolean;
 }
 
@@ -26,22 +30,25 @@ interface BioPictureFrameInput {
 }
 
 interface BioPictureDotAppearance {
+  centerX: number;
+  centerY: number;
   color: string;
   size: number;
   radius: number;
 }
 
 export const BIO_PICTURE_SIGNAL_COLORS = [
-  '#f8fbff',
-  '#eaf2ff',
-  '#dbeafe',
-  '#bfdbfe',
-  '#c7ddff',
+  '#c69afe',
+  '#c091fc',
+  '#ba88fa',
+  '#b580f7',
+  '#af78f4',
 ] as const;
-const BG_MUTED = ['#07070c', '#08080e', '#090910', '#08090f', '#07080d'] as const;
-const BG_SPOTLIGHT = ['#0b0b14', '#0c0c16', '#0a0b13', '#0d0c17', '#0a0a12'] as const;
+const BG_MUTED = ['#462878', '#4d2c83', '#53308c', '#593496', '#6039a1'] as const;
+const BG_SPOTLIGHT = ['#6840aa', '#7046b5', '#784cc0', '#8052c8', '#7449ba'] as const;
 export const BIO_PICTURE_BACKGROUND = '#020503';
 const BIO_PICTURE_LETTER_SATURATION = 0.95;
+const BIO_PICTURE_BACKGROUND_DOT_SATURATION = 0.5;
 
 function bioPictureFrameOffset(input: {
   frameIndex: number;
@@ -49,12 +56,35 @@ function bioPictureFrameOffset(input: {
   width: number;
   height: number;
 }): { x: number; y: number } {
-  if (input.framesPerPrompt <= 1) return { x: 0, y: 0 };
+  if (input.framesPerPrompt <= 1 || input.framesPerPrompt === 4) return { x: 0, y: 0 };
   const phase = ((input.frameIndex % input.framesPerPrompt) / input.framesPerPrompt) * Math.PI * 2;
   const amplitude = Math.max(2, Math.round(Math.min(input.width, input.height) * 0.022));
   return {
     x: Math.round(Math.cos(phase) * amplitude),
     y: Math.round(Math.sin(phase) * amplitude * 0.72),
+  };
+}
+
+function bioPictureBackgroundFrameOffset(input: {
+  letter: string;
+  variantIndex: number;
+  dotIndex: number;
+  frameIndex: number;
+  framesPerPrompt: number;
+  gap: number;
+}): { x: number; y: number } {
+  if (input.framesPerPrompt <= 1) return { x: 0, y: 0 };
+  const next = seededRandom(
+    `bio-picture-style:background-motion:${input.letter}:${input.variantIndex}:${input.dotIndex}`
+  );
+  const phaseOffset = next() * Math.PI * 2;
+  const amplitude = input.gap * (0.32 + next() * 0.18);
+  const normalizedFrameIndex =
+    ((input.frameIndex % input.framesPerPrompt) + input.framesPerPrompt) % input.framesPerPrompt;
+  const phase = phaseOffset + (normalizedFrameIndex / input.framesPerPrompt) * Math.PI * 2;
+  return {
+    x: Math.cos(phase) * amplitude,
+    y: Math.sin(phase) * amplitude * 0.76,
   };
 }
 
@@ -91,7 +121,7 @@ export function bioPictureBlockSize(width: number, height: number): number {
 }
 
 function dotSize(next: () => number, gap: number, isLetter: boolean): number {
-  if (!isLetter) return Math.max(1.6, gap * (0.18 + next() * 0.04));
+  if (!isLetter) return Math.max(5.2, gap * (0.58 + next() * 0.26));
   return Math.max(6.4, gap * (0.72 + next() * 0.08));
 }
 
@@ -124,12 +154,22 @@ function buildBioPictureDot(input: {
     `bio-picture-style:letter-dot:${input.picture.letter}:${input.picture.variantIndex}:${input.index}`
   );
   const isLetter = samplesLetter && letterNext() < BIO_PICTURE_LETTER_SATURATION;
-  const offset = bioPictureFrameOffset(input.picture);
-  const x = isLetter ? baseX + offset.x : baseX;
-  const y = isLetter ? baseY + offset.y : baseY;
+  const letterOffset = bioPictureFrameOffset(input.picture);
+  const backgroundOffset = bioPictureBackgroundFrameOffset({
+    letter: input.picture.letter,
+    variantIndex: input.picture.variantIndex,
+    dotIndex: input.index,
+    frameIndex: input.picture.frameIndex,
+    framesPerPrompt: input.picture.framesPerPrompt,
+    gap: input.gap,
+  });
+  const x = baseX + (isLetter ? letterOffset.x : backgroundOffset.x);
+  const y = baseY + (isLetter ? letterOffset.y : backgroundOffset.y);
+  const backgroundX = baseX + backgroundOffset.x;
+  const backgroundY = baseY + backgroundOffset.y;
   const hidden = backgroundColor({
-    x,
-    y,
+    x: backgroundX,
+    y: backgroundY,
     width: input.picture.width,
     height: input.picture.height,
     next: input.next,
@@ -139,15 +179,29 @@ function buildBioPictureDot(input: {
   return {
     x,
     y,
+    backgroundX,
+    backgroundY,
     size,
-    radius: Math.max(1.5, size * 0.22),
+    radius: size / 2,
     hiddenSize,
-    hiddenRadius: Math.max(1.5, hiddenSize * 0.22),
+    hiddenRadius: hiddenSize / 2,
     on: isLetter ? pick(letterNext, BIO_PICTURE_SIGNAL_COLORS) : hidden,
     hidden,
     isLetter,
+    isGlyphArea: samplesLetter,
+    isVisibleBackground:
+      seededRandom(
+        `bio-picture-style:background-dot:${input.picture.letter}:${input.picture.variantIndex}:${input.index}`
+      )() < BIO_PICTURE_BACKGROUND_DOT_SATURATION,
     isVisibleLetter: isLetter,
   };
+}
+
+function retainBackgroundDots(dots: BioPictureDot[]): BioPictureDot[] {
+  return dots.filter((dot) => {
+    if (dot.isGlyphArea) return true;
+    return dot.isVisibleBackground;
+  });
 }
 
 function selectFourFrameLetterPartition(
@@ -156,33 +210,16 @@ function selectFourFrameLetterPartition(
 ): BioPictureDot[] {
   const letterDots = dots.filter((dot) => dot.isLetter);
   if (letterDots.length === 0) return dots;
-  const minX = Math.min(...letterDots.map((dot) => dot.x));
-  const maxX = Math.max(...letterDots.map((dot) => dot.x));
-  const midpoint = (minX + maxX) / 2;
+  const minY = Math.min(...letterDots.map((dot) => dot.y));
+  const maxY = Math.max(...letterDots.map((dot) => dot.y));
+  const glyphHeight = Math.max(1, maxY - minY);
   const normalizedFrameIndex = ((input.frameIndex % 4) + 4) % 4;
-  const showsLeftHalf = normalizedFrameIndex % 2 === 0;
-  const showsFirstPartition = normalizedFrameIndex < 2;
-  const rankedSideDotIndexes = dots
-    .flatMap((dot, dotIndex) => {
-      const belongsToSide = showsLeftHalf ? dot.x <= midpoint : dot.x > midpoint;
-      if (!dot.isLetter || !belongsToSide) return [];
-      const next = seededRandom(
-        `bio-picture-style:frame-partition:${input.letter}:${input.variantIndex}:${dotIndex}`
-      );
-      return [{ dotIndex, rank: next() }];
-    })
-    .sort((left, right) => left.rank - right.rank);
-  const partitionAt = Math.ceil(rankedSideDotIndexes.length / 2);
-  const visibleDotIndexes = new Set(
-    (showsFirstPartition
-      ? rankedSideDotIndexes.slice(0, partitionAt)
-      : rankedSideDotIndexes.slice(partitionAt)
-    ).map(({ dotIndex }) => dotIndex)
-  );
 
-  return dots.map((dot, dotIndex) => ({
+  return dots.map((dot) => ({
     ...dot,
-    isVisibleLetter: visibleDotIndexes.has(dotIndex),
+    isVisibleLetter:
+      dot.isLetter &&
+      Math.min(3, Math.floor(((dot.y - minY) / glyphHeight) * 4)) === normalizedFrameIndex,
   }));
 }
 
@@ -228,16 +265,27 @@ export function buildBioPictureDots(input: BioPictureDotsInput): BioPictureDot[]
       );
     }
   }
-  return selectVisibleLetterDots(dots, input);
+  return selectVisibleLetterDots(retainBackgroundDots(dots), input);
 }
 
-export function bioPictureDotAppearance(input: BioPictureFrameInput): BioPictureDotAppearance {
-  if (!input.dot.isVisibleLetter) {
+export function bioPictureDotAppearance(
+  input: BioPictureFrameInput
+): BioPictureDotAppearance | null {
+  if (input.dot.isVisibleLetter) {
     return {
-      color: input.dot.hidden,
-      size: input.dot.hiddenSize,
-      radius: input.dot.hiddenRadius,
+      centerX: input.dot.x,
+      centerY: input.dot.y,
+      color: input.dot.on,
+      size: input.dot.size,
+      radius: input.dot.radius,
     };
   }
-  return { color: input.dot.on, size: input.dot.size, radius: input.dot.radius };
+  if (!input.dot.isVisibleBackground) return null;
+  return {
+    centerX: input.dot.backgroundX,
+    centerY: input.dot.backgroundY,
+    color: input.dot.hidden,
+    size: input.dot.hiddenSize,
+    radius: input.dot.hiddenRadius,
+  };
 }

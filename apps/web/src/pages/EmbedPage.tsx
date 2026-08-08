@@ -22,13 +22,14 @@ export function EmbedPage() {
   const presentation = embedPresentation({
     status: view.status,
     completion: view.error ? 'failed' : view.completion,
+    expired: view.expired,
   });
   return (
     <EmbedView
       moduleReference={root}
       frame={frame}
       presentation={presentation}
-      error={view.error}
+      error={view.expired ? null : view.error}
       compact={compact}
     />
   );

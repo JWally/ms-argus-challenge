@@ -13,6 +13,7 @@ declare const __EMBED_ORIGIN__: string;
 
 const DEFAULT_WIDGET_MAX_WIDTH = '28rem';
 const DEFAULT_WIDGET_HEIGHT = 420;
+const DEFAULT_WIDGET_BORDER_RADIUS = '20px';
 const MIN_WIDGET_HEIGHT = 260;
 const MAX_WIDGET_HEIGHT = 640;
 
@@ -68,7 +69,8 @@ function mountCaptcha(
   iframe.title = 'Argus device pairing';
   iframe.setAttribute('referrerpolicy', 'origin');
   iframe.style.cssText =
-    `border:0;display:block;width:100%;max-width:${DEFAULT_WIDGET_MAX_WIDTH};` +
+    `border:0;border-radius:${DEFAULT_WIDGET_BORDER_RADIUS};overflow:hidden;` +
+    `display:block;width:100%;max-width:${DEFAULT_WIDGET_MAX_WIDTH};` +
     `height:${DEFAULT_WIDGET_HEIGHT}px;color-scheme:normal;background:transparent;`;
   slot.appendChild(iframe);
 

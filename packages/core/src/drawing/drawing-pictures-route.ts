@@ -48,14 +48,15 @@ export function createDrawingPicturesHandler(dependencies: DrawingPicturesHandle
     if (!canRequestDrawingPictures(session)) {
       return { status: 410, body: { error: 'drawing_pictures_unavailable' } };
     }
+    const prompts = drawingPromptsForSession({
+      sessionId,
+      drawingPromptSeed: session.drawingPromptSeed,
+    });
     const sealed = await dependencies.sealPictures({
       clientPublicKey: publicKey,
       compression: 'none',
-      prompts: drawingPromptsForSession({
-        sessionId,
-        drawingPromptSeed: session.drawingPromptSeed,
-      }),
+      prompts,
     });
-    return { status: 200, body: sealed };
+    return { status: 200, body: { ...sealed, letters: prompts.map(({ letter }) => letter) } };
   };
 }

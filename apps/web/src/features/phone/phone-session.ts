@@ -23,6 +23,7 @@ export interface PhoneSession {
   connection: RelayConnection;
   ready: Promise<DesktopReady>;
   pictures: RenderedDrawingPictures;
+  expectedLetters: string[];
   scan: Promise<AttestedScan>;
   revealKey(): Promise<string>;
 }
@@ -38,6 +39,12 @@ interface SealedDrawingPicturesResponse {
   framesPerPrompt: number;
   frameMs: number;
   pictureCount: number;
+  letters: string[];
+}
+
+interface PhoneDrawingChallenge {
+  pictures: RenderedDrawingPictures;
+  expectedLetters: string[];
 }
 
 interface DrawingPictureKeyholder {
@@ -59,7 +66,7 @@ interface ExpectedReady {
 
 interface StartPhoneSessionDependencies {
   hash: string;
-  openPictures(sessionId: string, binding: PhoneBinding): Promise<RenderedDrawingPictures>;
+  openPictures(sessionId: string, binding: PhoneBinding): Promise<PhoneDrawingChallenge>;
   scan(input: { cpi: string; payload: Record<string, unknown> }): Promise<AttestedScan>;
   connect(input: { url: string; token: string }): Promise<RelayConnection>;
   nowMs(): number;
@@ -137,7 +144,7 @@ export async function openServerDrawingPictures(
     keyholder: new QrKeyholder(),
     request: requestJson,
   }
-): Promise<RenderedDrawingPictures> {
+): Promise<PhoneDrawingChallenge> {
   try {
     const key = await dependencies.keyholder.key();
     const sealed = await dependencies.request<SealedDrawingPicturesResponse>(
@@ -148,7 +155,17 @@ export async function openServerDrawingPictures(
         body: JSON.stringify({ clientPublicKey: key.clientPublicKey }),
       }
     );
-    return await dependencies.keyholder.openDrawingPictures(sealed);
+    if (
+      !Array.isArray(sealed.letters) ||
+      sealed.letters.length !== 3 ||
+      sealed.letters.some((letter) => typeof letter !== 'string' || !/^[A-Z]$/.test(letter))
+    ) {
+      throw new Error('drawing_targets_invalid');
+    }
+    return {
+      pictures: await dependencies.keyholder.openDrawingPictures(sealed),
+      expectedLetters: sealed.letters,
+    };
   } finally {
     dependencies.keyholder.close();
   }
@@ -174,7 +191,7 @@ export async function startPhoneSessionWithDependencies(
   });
   void ready.catch(() => undefined);
   connection.send(binding.desktopEnvelope, { kind: 'phone-here', challenge: true });
-  const openedPictures = await pictures;
+  const drawingChallenge = await pictures;
   const scan = dependencies.scan({
     cpi: DEFAULT_CPI,
     payload: { sessionId, nonce: binding.nonce, role: 'phone' },
@@ -185,7 +202,8 @@ export async function startPhoneSessionWithDependencies(
     binding,
     connection,
     ready,
-    pictures: openedPictures,
+    pictures: drawingChallenge.pictures,
+    expectedLetters: drawingChallenge.expectedLetters,
     scan,
     revealKey: () => key,
   };

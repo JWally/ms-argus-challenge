@@ -194,7 +194,7 @@ describe('deployed challenge stack', () => {
     expect(bundle.frames.every((frame) => frame.byteLength > 1_000)).toBe(true);
   });
 
-  it('returns four side-partitioned server-rendered PNG frames per prompt to the authenticated phone', async () => {
+  it('returns four horizontally partitioned server-rendered PNG frames per prompt to the authenticated phone', async () => {
     const session = await startSession();
     const client = await generateKeyPair();
     const clientPublicKey = await exportPublicKey(client.publicKey);
@@ -210,8 +210,13 @@ describe('deployed challenge stack', () => {
       encoding: 'png',
       compression: 'none',
       framesPerPrompt: 4,
-      frameMs: 60,
+      frameMs: 30,
       pictureCount: 12,
+      letters: [
+        expect.stringMatching(/^[A-HJ-NP-Z]$/),
+        expect.stringMatching(/^[A-HJ-NP-Z]$/),
+        expect.stringMatching(/^[A-HJ-NP-Z]$/),
+      ],
     });
     const serverPublicKey = await importPublicKey(String(result.body.sPub));
     const key = await deriveAesKey(client.privateKey, serverPublicKey);
