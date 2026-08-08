@@ -10,12 +10,30 @@ const SEVERITY_RANKS = new Map([
   ['critical', 4],
 ]);
 
-const RSC_EXCEPTION = {
-  packageName: 'react-router',
-  url: 'https://github.com/advisories/GHSA-qwww-vcr4-c8h2',
-  expiresAt: new Date('2026-10-01T00:00:00.000Z'),
-  reason: 'Challenge uses the stable browser SPA APIs, not React Server Components',
-} as const;
+interface AuditException {
+  packageName: string;
+  url: string;
+  expiresAt: Date;
+  reason: string;
+  allowedNodes?: readonly string[];
+}
+
+const AUDIT_EXCEPTIONS: readonly AuditException[] = [
+  {
+    packageName: 'react-router',
+    url: 'https://github.com/advisories/GHSA-qwww-vcr4-c8h2',
+    expiresAt: new Date('2026-10-01T00:00:00.000Z'),
+    reason: 'Challenge uses the stable browser SPA APIs, not React Server Components',
+  },
+  {
+    packageName: 'brace-expansion',
+    url: 'https://github.com/advisories/GHSA-rgw5-rvv9-x895',
+    expiresAt: new Date('2026-08-22T00:00:00.000Z'),
+    reason:
+      'The latest aws-cdk-lib bundles the vulnerable version for trusted infrastructure synthesis; exception expires 2026-08-22',
+    allowedNodes: ['node_modules/aws-cdk-lib/node_modules/brace-expansion'],
+  },
+];
 
 interface AdvisoryEvidence {
   packageName?: string;
@@ -92,11 +110,40 @@ function collectEvidence(
   });
 }
 
-function isException(evidence: AdvisoryEvidence, now: Date): boolean {
+function getNodes(vulnerability: unknown): readonly string[] {
+  if (!isRecord(vulnerability) || !Array.isArray(vulnerability.nodes)) {
+    return [];
+  }
+
+  return vulnerability.nodes.filter((node): node is string => typeof node === 'string');
+}
+
+function hasOnlyAllowedNodes(
+  vulnerability: unknown,
+  allowedNodes: readonly string[] | undefined
+): boolean {
+  if (allowedNodes === undefined) {
+    return true;
+  }
+
+  const vulnerabilityNodes = getNodes(vulnerability);
   return (
-    evidence.packageName === RSC_EXCEPTION.packageName &&
-    evidence.url === RSC_EXCEPTION.url &&
-    now.getTime() < RSC_EXCEPTION.expiresAt.getTime()
+    vulnerabilityNodes.length === allowedNodes.length &&
+    vulnerabilityNodes.every((node) => allowedNodes.includes(node))
+  );
+}
+
+function matchingException(
+  evidence: AdvisoryEvidence,
+  vulnerability: unknown,
+  now: Date
+): AuditException | undefined {
+  return AUDIT_EXCEPTIONS.find(
+    (exception) =>
+      evidence.packageName === exception.packageName &&
+      evidence.url === exception.url &&
+      now.getTime() < exception.expiresAt.getTime() &&
+      hasOnlyAllowedNodes(vulnerability, exception.allowedNodes)
   );
 }
 
@@ -143,8 +190,16 @@ export function evaluateAuditReport(report: unknown, now = new Date()): AuditDec
     }
 
     const evidence = collectEvidence(packageName, vulnerabilities);
-    if (evidence.length > 0 && evidence.every((item) => isException(item, now))) {
-      decision.accepted.push(finding(packageName, vulnerability, evidence, RSC_EXCEPTION.reason));
+    const matchedExceptions = evidence.map((item) => matchingException(item, vulnerability, now));
+    if (evidence.length > 0 && matchedExceptions.every((exception) => exception !== undefined)) {
+      const reasons = [
+        ...new Set(
+          matchedExceptions.flatMap((exception) =>
+            exception === undefined ? [] : [exception.reason]
+          )
+        ),
+      ];
+      decision.accepted.push(finding(packageName, vulnerability, evidence, reasons.join('; ')));
       continue;
     }
 
@@ -200,8 +255,8 @@ function runAudit(): number {
 
   if (decision.accepted.length > 0) {
     process.stdout.write(
-      `Accepted ${decision.accepted.length} package finding(s) for ${RSC_EXCEPTION.url}.\n` +
-        `${RSC_EXCEPTION.reason}. Exception expires ${RSC_EXCEPTION.expiresAt.toISOString()}.\n`
+      `Accepted ${decision.accepted.length} narrowly scoped package finding(s):\n` +
+        `${decision.accepted.map((item) => `${formatFinding(item)}\n  ${item.reason}`).join('\n')}\n`
     );
   } else {
     process.stdout.write('Dependency audit found no moderate-or-higher vulnerabilities.\n');
