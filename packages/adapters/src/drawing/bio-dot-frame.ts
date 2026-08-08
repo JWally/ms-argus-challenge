@@ -125,12 +125,13 @@ function renderRgbFrame(input: BioDotFrameInput): Uint8Array {
     const appearance = bioPictureDotAppearance({
       dot,
     });
+    if (!appearance) continue;
     fillRoundedSquare({
       output,
       width: input.width,
       height: input.height,
-      centerX: dot.x,
-      centerY: dot.y,
+      centerX: appearance.centerX,
+      centerY: appearance.centerY,
       size: appearance.size,
       radius: appearance.radius,
       color: rgb(appearance.color),

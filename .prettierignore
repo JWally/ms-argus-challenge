@@ -4,3 +4,7 @@ coverage
 cdk.out
 loader/dist
 package-lock.json
+apps/web/public/blueprint-draw.html
+apps/web/public/blueprint-trace.html
+prototypes/blueprint-draw.html
+prototypes/blueprint-trace.html

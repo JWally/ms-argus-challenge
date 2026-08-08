@@ -36,7 +36,7 @@ function handler(overrides: Partial<Parameters<typeof createDrawingPicturesHandl
 }
 
 describe('drawing pictures route', () => {
-  it('authenticates the phone token and seals server-owned prompts without exposing letters', async () => {
+  it('authenticates the phone token and returns grader targets with the sealed pictures', async () => {
     const authenticatePhone = vi.fn().mockResolvedValue(true);
     const sealPictures = vi.fn().mockResolvedValue({
       enc: 'sealed-png-frames',
@@ -74,7 +74,15 @@ describe('drawing pictures route', () => {
     expect(JSON.stringify(response.body)).not.toContain('client-visible-nonce');
     expect(response).toMatchObject({
       status: 200,
-      body: { kind: 'drawing-pictures', pictureCount: 6 },
+      body: {
+        kind: 'drawing-pictures',
+        pictureCount: 6,
+        letters: [
+          expect.stringMatching(/^[A-HJ-NP-Z]$/),
+          expect.stringMatching(/^[A-HJ-NP-Z]$/),
+          expect.stringMatching(/^[A-HJ-NP-Z]$/),
+        ],
+      },
     });
   });
 

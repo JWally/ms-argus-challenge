@@ -10,4 +10,10 @@ describe('loader public surface', () => {
     expect(source).toContain("getAttribute('data-challenge-id')");
     expect(source).toContain("querySelectorAll('.argus-captcha')");
   });
+
+  it('clips the iframe viewport to the rounded challenge card', async () => {
+    const source = await readFile(new URL('./loader.ts', import.meta.url), 'utf8');
+
+    expect(source).toContain('border-radius:${DEFAULT_WIDGET_BORDER_RADIUS}');
+  });
 });

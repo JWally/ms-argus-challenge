@@ -31,5 +31,11 @@ export function PhonePage() {
       />
     );
   }
-  return <DrawingBoard pictures={challenge.session.pictures} onComplete={challenge.finish} />;
+  return (
+    <DrawingBoard
+      pictures={challenge.session.pictures}
+      expectedLetters={challenge.session.expectedLetters}
+      onComplete={challenge.finish}
+    />
+  );
 }

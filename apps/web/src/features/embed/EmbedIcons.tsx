@@ -43,6 +43,8 @@ export function EmbedSeal({ phase }: { phase: EmbedPhase }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      ) : phase === 'expired' ? (
+        <path d="M24 16v8l5 3" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       ) : (
         <path d="M19 19l10 10M29 19l-10 10" strokeWidth="3.2" strokeLinecap="round" />
       )}

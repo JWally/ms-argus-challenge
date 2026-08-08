@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { startSso } from '../features/sso/sso-client.js';
+import { SsoDrawingInterstitial } from '../features/sso/SsoDrawingInterstitial.js';
 import { userFacingError } from '../shared/http.js';
 import { SsoStatusPage } from './SsoStatusPage.js';
 
@@ -9,6 +10,7 @@ export function MobileSsoPage() {
   const [parameters] = useSearchParams();
   const started = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
   const returnUrl = parameters.get('returnUrl');
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function MobileSsoPage() {
     let cancelled = false;
     void startSso({ cpi, challengeId, callbackUrl: returnUrl })
       .then((state) => {
-        if (!cancelled) void navigate(state.challengeUrl, { replace: true });
+        if (!cancelled) setDestination(state.challengeUrl);
       })
       .catch((cause: unknown) => {
         if (!cancelled) setError(userFacingError(cause));
@@ -33,22 +35,31 @@ export function MobileSsoPage() {
     };
   }, [navigate, parameters, returnUrl]);
 
+  if (!error) {
+    return (
+      <SsoDrawingInterstitial
+        step={1}
+        ready={Boolean(destination)}
+        onContinue={() => {
+          if (destination) void navigate(destination, { replace: true });
+        }}
+      />
+    );
+  }
+
   return (
     <SsoStatusPage
       step={1}
-      title={error ? 'Could not start sign-in' : 'Checking this device'}
-      detail={error ?? 'This usually takes only a moment.'}
-      busy={!error}
+      title="Could not start sign-in"
+      detail={error}
       action={
-        error ? (
-          <button
-            type="button"
-            className="button secondary"
-            onClick={() => (returnUrl ? window.location.assign(returnUrl) : window.history.back())}
-          >
-            Return to site
-          </button>
-        ) : undefined
+        <button
+          type="button"
+          className="button secondary"
+          onClick={() => (returnUrl ? window.location.assign(returnUrl) : window.history.back())}
+        >
+          Return to site
+        </button>
       }
     />
   );

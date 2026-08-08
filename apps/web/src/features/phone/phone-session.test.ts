@@ -71,6 +71,7 @@ describe('server drawing picture opener', () => {
         framesPerPrompt: 2,
         frameMs: 50,
         pictureCount: 1,
+        letters: ['A', 'B', 'C'],
       } as T;
     };
 
@@ -87,7 +88,10 @@ describe('server drawing picture opener', () => {
         },
         { keyholder, request }
       )
-    ).resolves.toMatchObject({ width: 2, pictures: [expect.any(Uint8Array)] });
+    ).resolves.toMatchObject({
+      expectedLetters: ['A', 'B', 'C'],
+      pictures: { width: 2, pictures: [expect.any(Uint8Array)] },
+    });
 
     expect(requests).toEqual([
       {
@@ -140,6 +144,7 @@ describe('server drawing picture opener', () => {
         framesPerPrompt: 2,
         frameMs: 50,
         pictureCount: 1,
+        letters: ['A', 'B', 'C'],
       }) as T;
 
     const result = openServerDrawingPictures(
@@ -166,7 +171,49 @@ describe('server drawing picture opener', () => {
       pictures: [new Uint8Array([1, 2, 3, 4])],
     });
 
-    await expect(result).resolves.toMatchObject({ width: 2, height: 2 });
+    await expect(result).resolves.toMatchObject({
+      expectedLetters: ['A', 'B', 'C'],
+      pictures: { width: 2, height: 2 },
+    });
+    expect(keyholder.close).toHaveBeenCalledOnce();
+  });
+
+  it('rejects picture responses without three valid grading targets', async () => {
+    const keyholder = {
+      key: async () => ({ clientPublicKey: 'client-public-key' }),
+      openDrawingPictures: vi.fn(),
+      close: vi.fn(),
+    };
+    const request = async <T>(): Promise<T> =>
+      ({
+        enc: 'sealed-pixels',
+        sPub: 'server-public-key',
+        kind: 'drawing-pictures',
+        encoding: 'gray8',
+        compression: 'none',
+        width: 2,
+        height: 2,
+        framesPerPrompt: 2,
+        frameMs: 50,
+        pictureCount: 1,
+        letters: ['A', '?'],
+      }) as T;
+
+    await expect(
+      openServerDrawingPictures(
+        '4f4cf495-a98b-4b76-9099-8ad59dc85ccb',
+        {
+          wsUrl: 'wss://socket.example/dev',
+          desktopEnvelope: 'desktop-envelope',
+          phoneToken: 'phone-token',
+          nonce: 'client-visible-nonce',
+          proofRequired: true,
+          freshProofRequired: false,
+        },
+        { keyholder, request }
+      )
+    ).rejects.toThrow('drawing_targets_invalid');
+    expect(keyholder.openDrawingPictures).not.toHaveBeenCalled();
     expect(keyholder.close).toHaveBeenCalledOnce();
   });
 });
@@ -203,7 +250,7 @@ describe('phone session startup', () => {
       '4f4cf495-a98b-4b76-9099-8ad59dc85ccb',
       {
         hash,
-        openPictures: async () => pictures,
+        openPictures: async () => ({ pictures, expectedLetters: ['A', 'B', 'C'] }),
         scan: async () => {
           scanStarted = true;
           return new Promise(() => undefined);
@@ -214,6 +261,7 @@ describe('phone session startup', () => {
     );
 
     expect(session.pictures).toBe(pictures);
+    expect(session.expectedLetters).toEqual(['A', 'B', 'C']);
     expect(scanStarted).toBe(true);
     expect(connection.send).toHaveBeenCalledWith('desktop-envelope', {
       kind: 'phone-here',

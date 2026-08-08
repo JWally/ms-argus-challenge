@@ -1,7 +1,36 @@
-import { devices, expect, test } from '@playwright/test';
+import { devices, expect, test, type Page } from '@playwright/test';
 
 const live = process.env.CHALLENGE_LIVE === '1';
 const cpi = process.env.CHALLENGE_CPI ?? 'argus_cpi_test_UEeqk7Bk7uetxKKDxNmIdB';
+
+async function completeSsoDrawing(
+  page: Page,
+  step: 1 | 2 | 3,
+  action: 'NEXT' | 'DONE'
+): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Secure session check' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText(`Step ${step} of 3`, { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  const canvas = page.locator('canvas[aria-label^="Draw the letter"]');
+  const bounds = await canvas.boundingBox();
+  if (!bounds) throw new Error('SSO drawing canvas was not visible');
+  await page.mouse.move(bounds.x + bounds.width * 0.25, bounds.y + bounds.height * 0.8);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * 0.5, bounds.y + bounds.height * 0.2, {
+    steps: 8,
+  });
+  await page.mouse.move(bounds.x + bounds.width * 0.75, bounds.y + bounds.height * 0.8, {
+    steps: 8,
+  });
+  await page.mouse.up();
+  await page.getByRole('button', { name: 'CHECK', exact: true }).click();
+  const advance = page.getByRole('button', { name: action, exact: true });
+  await expect(advance).toBeEnabled({ timeout: 30_000 });
+  await advance.click();
+}
 
 test('desktop home presents pairing and keeps mobile SSO out of the way', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 800 });
@@ -222,7 +251,7 @@ test('live phone-classified fastpass SSO reaches an explicit terminal decision',
   browser,
   baseURL,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   test.skip(!live, 'requires the deployed Challenge stack');
   if (!baseURL) throw new Error('live SSO test requires a base URL');
   const context = await browser.newContext({ ...devices['iPhone 14'], baseURL });
@@ -230,6 +259,8 @@ test('live phone-classified fastpass SSO reaches an explicit terminal decision',
   try {
     await page.goto('/merchant?assurance=fastpass');
     await page.getByRole('button', { name: 'Run demo' }).click();
+    await completeSsoDrawing(page, 2, 'NEXT');
+    await completeSsoDrawing(page, 3, 'DONE');
     await expect(
       page.getByRole('heading', {
         name: /Session is Valid|Session could not be confirmed/,

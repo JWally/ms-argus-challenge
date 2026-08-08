@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { buildBioPictureSnow } from '../../../contracts/src/drawing/bio-picture-snow.js';
+import {
+  BIO_PICTURE_STATIC_COLORS,
+  buildBioPictureSnow,
+} from '../../../contracts/src/drawing/bio-picture-snow.js';
 import {
   BIO_PICTURE_SIGNAL_COLORS,
+  bioPictureDotAppearance,
   buildBioPictureDots,
 } from '../../../contracts/src/drawing/bio-picture-style.js';
 
@@ -28,16 +32,21 @@ function buildHFrames(): BioPictureFrames {
   );
 }
 
-function retainedMidpoint(frame: BioPictureFrames[number]): number {
-  const retainedDots = frame.filter((dot) => dot.isLetter);
-  return (
-    (Math.min(...retainedDots.map((dot) => dot.x)) +
-      Math.max(...retainedDots.map((dot) => dot.x))) /
-    2
+function buildBackgroundFrames(): BioPictureFrames {
+  return Array.from({ length: 5 }, (_, frameIndex) =>
+    buildBioPictureDots({
+      letter: 'B',
+      variantIndex: 0,
+      frameIndex,
+      framesPerPrompt: 4,
+      width: 600,
+      height: 270,
+      sampleLetter: () => false,
+    })
   );
 }
 
-function expectExclusiveSidePartitions(frames: BioPictureFrames, midpoint: number): void {
+function expectExclusivePartitions(frames: BioPictureFrames): void {
   const firstFrame = frames[0]!;
   for (let dotIndex = 0; dotIndex < firstFrame.length; dotIndex += 1) {
     const dot = firstFrame[dotIndex]!;
@@ -47,24 +56,44 @@ function expectExclusiveSidePartitions(frames: BioPictureFrames, midpoint: numbe
       continue;
     }
     expect(visibility.filter(Boolean)).toHaveLength(1);
-    const visibleFrameIndex = visibility.findIndex(Boolean);
-    expect(dot.x <= midpoint ? [0, 2] : [1, 3]).toContain(visibleFrameIndex);
   }
 }
 
-function expectSidePartitionRatios(frames: BioPictureFrames, midpoint: number): void {
-  const retainedDots = frames[0]!.filter((dot) => dot.isLetter);
-  const retainedLeftCount = retainedDots.filter((dot) => dot.x <= midpoint).length;
-  const retainedRightCount = retainedDots.length - retainedLeftCount;
-  for (const [frameIndexes, retainedSideCount] of [
-    [[0, 2], retainedLeftCount],
-    [[1, 3], retainedRightCount],
-  ] as const) {
-    for (const frameIndex of frameIndexes) {
-      const visibleCount = frames[frameIndex]!.filter((dot) => dot.isVisibleLetter).length;
-      expect(visibleCount / retainedSideCount).toBeGreaterThan(0.45);
-      expect(visibleCount / retainedSideCount).toBeLessThan(0.55);
-    }
+function expectStationaryHorizontalPieces(frames: BioPictureFrames): void {
+  const firstGlyphPositions = frames[0]!
+    .filter((dot) => dot.isLetter)
+    .map(({ x, y }) => ({ x, y }));
+  for (const frame of frames.slice(1)) {
+    expect(frame.filter((dot) => dot.isLetter).map(({ x, y }) => ({ x, y }))).toEqual(
+      firstGlyphPositions
+    );
+  }
+
+  const ranges = frames.map((frame) => {
+    const visibleY = frame.filter((dot) => dot.isVisibleLetter).map((dot) => dot.y);
+    expect(visibleY.length).toBeGreaterThan(0);
+    return { minY: Math.min(...visibleY), maxY: Math.max(...visibleY) };
+  });
+  for (let frameIndex = 1; frameIndex < ranges.length; frameIndex += 1) {
+    expect(ranges[frameIndex - 1]!.maxY).toBeLessThan(ranges[frameIndex]!.minY);
+  }
+}
+
+function expectEveryFrameIsRequired(frames: BioPictureFrames): void {
+  const retainedDotIndexes = new Set(
+    frames[0]!.flatMap((dot, dotIndex) => (dot.isLetter ? [dotIndex] : []))
+  );
+  const visibleDotIndexes = (includedFrames: BioPictureFrames): Set<number> =>
+    new Set(
+      includedFrames.flatMap((frame) =>
+        frame.flatMap((dot, dotIndex) => (dot.isVisibleLetter ? [dotIndex] : []))
+      )
+    );
+
+  expect(visibleDotIndexes(frames)).toEqual(retainedDotIndexes);
+  for (let omittedFrameIndex = 0; omittedFrameIndex < frames.length; omittedFrameIndex += 1) {
+    const incompleteFrames = frames.filter((_, frameIndex) => frameIndex !== omittedFrameIndex);
+    expect(visibleDotIndexes(incompleteFrames).size).toBeLessThan(retainedDotIndexes.size);
   }
 }
 
@@ -87,18 +116,81 @@ describe('Bio picture style', () => {
     expect(letterRatio).toBeLessThan(0.98);
   });
 
-  it('partitions retained H dots across alternating left and right frames', () => {
+  it('shows one stationary horizontal quarter of the glyph per frame', () => {
     const frames = buildHFrames();
     const firstFrame = frames[0]!;
 
     expect(firstFrame).toHaveLength(frames[1]!.length);
     expect(firstFrame.map((dot) => dot.isLetter)).toEqual(frames[1]!.map((dot) => dot.isLetter));
-    const midpoint = retainedMidpoint(firstFrame);
-    expectExclusiveSidePartitions(frames, midpoint);
-    expectSidePartitionRatios(frames, midpoint);
+    expectExclusivePartitions(frames);
+    expectStationaryHorizontalPieces(frames);
+    expectEveryFrameIsRequired(frames);
+    for (const frame of frames) {
+      const inactiveLetterDots = frame.filter((dot) => dot.isLetter && !dot.isVisibleLetter);
+      const bakedStatic = inactiveLetterDots.flatMap((dot) => {
+        const appearance = bioPictureDotAppearance({ dot });
+        return appearance ? [{ dot, appearance }] : [];
+      });
+
+      expect(bakedStatic.length / inactiveLetterDots.length).toBeGreaterThan(0.4);
+      expect(bakedStatic.length / inactiveLetterDots.length).toBeLessThan(0.6);
+      expect(
+        bakedStatic.every(
+          ({ dot, appearance }) =>
+            appearance.color === dot.hidden &&
+            appearance.size === dot.hiddenSize &&
+            appearance.radius === dot.hiddenRadius &&
+            appearance.centerX === dot.backgroundX &&
+            appearance.centerY === dot.backgroundY
+        )
+      ).toBe(true);
+    }
+
+    const movingInactiveDotIndex = frames[0]!.findIndex(
+      (dot, dotIndex) =>
+        dot.isLetter &&
+        dot.isVisibleBackground &&
+        !frames[0]![dotIndex]!.isVisibleLetter &&
+        !frames[1]![dotIndex]!.isVisibleLetter
+    );
+    expect(movingInactiveDotIndex).toBeGreaterThanOrEqual(0);
+    const firstAppearance = bioPictureDotAppearance({
+      dot: frames[0]![movingInactiveDotIndex]!,
+    });
+    const secondAppearance = bioPictureDotAppearance({
+      dot: frames[1]![movingInactiveDotIndex]!,
+    });
+    expect(firstAppearance).not.toBeNull();
+    expect(secondAppearance).not.toBeNull();
+    expect(
+      Math.hypot(
+        secondAppearance!.centerX - firstAppearance!.centerX,
+        secondAppearance!.centerY - firstAppearance!.centerY
+      )
+    ).toBeGreaterThan(0.5);
   });
 
-  it('adds sparse background static at the same visual scale as glyph blocks', () => {
+  it('moves non-glyph dots across four frames and returns them to their starting positions', () => {
+    const frames = buildBackgroundFrames();
+    const firstFrame = frames[0]!;
+
+    for (const frame of frames.slice(1)) {
+      expect(frame).toHaveLength(firstFrame.length);
+      expect(frame.map((dot) => dot.hiddenSize)).toEqual(firstFrame.map((dot) => dot.hiddenSize));
+    }
+    for (const frame of frames.slice(1, 4)) {
+      const movedCount = frame.filter(
+        (dot, dotIndex) =>
+          Math.hypot(dot.x - firstFrame[dotIndex]!.x, dot.y - firstFrame[dotIndex]!.y) > 0.5
+      ).length;
+      expect(movedCount / firstFrame.length).toBeGreaterThan(0.95);
+    }
+    expect(frames[4]!.map(({ x, y }) => ({ x, y }))).toEqual(
+      firstFrame.map(({ x, y }) => ({ x, y }))
+    );
+  });
+
+  it('renders circular purple glyph blocks and dense multi-shade purple background static', () => {
     const width = 600;
     const height = 270;
     const snow = buildBioPictureSnow({
@@ -117,11 +209,23 @@ describe('Bio picture style', () => {
       height,
       sampleLetter: () => true,
     });
+    const backgroundDots = buildBioPictureDots({
+      letter: 'B',
+      variantIndex: 0,
+      frameIndex: 0,
+      framesPerPrompt: 1,
+      width,
+      height,
+      sampleLetter: () => false,
+    });
     const letterSizes = letterDots.map((dot) => dot.size);
+    const hiddenSizes = letterDots.map((dot) => dot.hiddenSize);
     const colors = new Set(snow.map((speck) => speck.color));
 
-    expect(snow.length).toBeGreaterThan(125);
-    expect(snow.length).toBeLessThan(160);
+    expect(snow.length).toBeGreaterThan(210);
+    expect(snow.length).toBeLessThan(240);
+    expect(backgroundDots.length).toBeGreaterThan(900);
+    expect(backgroundDots.length).toBeLessThan(1_000);
     expect(snow.every((speck) => speck.width === speck.height)).toBe(true);
     expect(Math.min(...snow.map((speck) => speck.width))).toBeGreaterThanOrEqual(
       Math.min(...letterSizes) - 1
@@ -129,15 +233,22 @@ describe('Bio picture style', () => {
     expect(Math.max(...snow.map((speck) => speck.width))).toBeLessThanOrEqual(
       Math.max(...letterSizes) + 1
     );
-    expect(colors.size).toBeGreaterThanOrEqual(4);
+    expect(snow.every((speck) => speck.radius === speck.width / 2)).toBe(true);
+    expect(letterDots.every((dot) => dot.radius === dot.size / 2)).toBe(true);
+    expect(letterDots.every((dot) => dot.hiddenRadius === dot.hiddenSize / 2)).toBe(true);
+    expect(Math.min(...hiddenSizes)).toBeGreaterThan(5);
+    expect(Math.max(...hiddenSizes)).toBeLessThan(8);
+    expect(colors.size).toBeGreaterThanOrEqual(8);
     const signalColors = new Set<string>(BIO_PICTURE_SIGNAL_COLORS);
-    expect([...colors].every((color) => signalColors.has(color))).toBe(true);
+    const staticColors = new Set<string>(BIO_PICTURE_STATIC_COLORS);
+    expect([...colors].every((color) => staticColors.has(color))).toBe(true);
+    expect([...signalColors].every((color) => staticColors.has(color))).toBe(true);
     expect(
       [...colors].every((color) => {
         const red = Number.parseInt(color.slice(1, 3), 16);
         const green = Number.parseInt(color.slice(3, 5), 16);
         const blue = Number.parseInt(color.slice(5, 7), 16);
-        return red >= 190 && blue >= green && green >= red;
+        return blue > red && red > green;
       })
     ).toBe(true);
   });

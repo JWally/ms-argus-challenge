@@ -32,7 +32,7 @@ function ScanPanel({ frame, phase }: { frame: string | null; phase: EmbedPresent
 }
 
 function DeviceLink({ presentation }: { presentation: EmbedPresentation }) {
-  const connected = presentation.phase !== 'scanning';
+  const connected = presentation.phase !== 'scanning' && presentation.phase !== 'expired';
   return (
     <div className="ax-link">
       <div className="ax-node here">

@@ -52,6 +52,7 @@ describe('phone drawing-board presentation', () => {
     const markup = renderToStaticMarkup(
       createElement(DrawingBoard, {
         pictures,
+        expectedLetters: ['A', 'B', 'C'],
         onComplete: vi.fn(),
       })
     );
@@ -72,8 +73,10 @@ describe('phone drawing-board presentation', () => {
     expect(markup.match(/<button/g)).toHaveLength(2);
     expect(markup).toContain('class="button drawing-submit"');
     expect(markup).toContain('class="button drawing-erase"');
-    expect(markup).toContain('NEXT');
+    expect(markup).toContain('CHECK');
     expect(markup).toContain('ERASE');
+    expect(markup).toContain('EMNIST CNN');
+    expect(markup).toContain('aria-live="polite"');
   });
 
   it('keeps enabled and disabled drawing actions readable against their backgrounds', () => {

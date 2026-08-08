@@ -40,11 +40,13 @@ function DebugToolbar({ letters, reroll }: { letters: string[]; reroll: () => vo
 function DebugPhoneFrame({
   isComplete,
   pictures,
+  letters,
   reroll,
   onComplete,
 }: {
   isComplete: boolean;
   pictures: RenderedDrawingPictures | null;
+  letters: string[];
   reroll: () => void;
   onComplete: () => void;
 }) {
@@ -55,7 +57,7 @@ function DebugPhoneFrame({
       ) : !pictures ? (
         <PreparingPreview />
       ) : (
-        <DrawingBoard pictures={pictures} onComplete={onComplete} />
+        <DrawingBoard pictures={pictures} expectedLetters={letters} onComplete={onComplete} />
       )}
     </section>
   );
@@ -98,7 +100,7 @@ export function DevDrawingPreviewPage() {
   if (!isDebug) {
     if (isComplete) return <PreviewComplete reroll={reroll} fullscreen />;
     return pictures ? (
-      <DrawingBoard pictures={pictures} onComplete={complete} />
+      <DrawingBoard pictures={pictures} expectedLetters={letters} onComplete={complete} />
     ) : (
       <PreparingPreview />
     );
@@ -110,6 +112,7 @@ export function DevDrawingPreviewPage() {
       <DebugPhoneFrame
         isComplete={isComplete}
         pictures={pictures}
+        letters={letters}
         reroll={reroll}
         onComplete={complete}
       />

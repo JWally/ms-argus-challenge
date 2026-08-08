@@ -72,7 +72,7 @@ describe('bio dot drawing picture frames', () => {
 
     expect(signalPixels).toBeGreaterThan(100);
     expect(backgroundPixels).toBeGreaterThan(100);
-    expect(backgroundOnlySignalPixels).toBeGreaterThan(width * height * 0.03);
+    expect(backgroundOnlySignalPixels).toBeGreaterThan(width * height * 0.028);
     expect(backgroundOnlySignalPixels).toBeLessThan(width * height * 0.08);
     expect(signalBrightness / signalPixels).toBeGreaterThan(150);
     expect(backgroundOnlySignalBrightness / backgroundOnlySignalPixels).toBeGreaterThan(150);
@@ -130,7 +130,7 @@ describe('bio dot drawing picture frames', () => {
     expect(Math.min(...signalByQuarter)).toBeGreaterThan(Math.max(...signalByQuarter) * 0.2);
   });
 
-  it('changes only sparse block static between PNG frames', async () => {
+  it('deterministically moves the background field between PNG frames', async () => {
     const width = 240;
     const height = 108;
     const input = {
@@ -156,8 +156,8 @@ describe('bio dot drawing picture frames', () => {
     }
 
     expect(first.equals(firstAgain)).toBe(true);
-    expect(changedPixels).toBeGreaterThan(width * height * 0.075);
-    expect(changedPixels).toBeLessThan(width * height * 0.11);
+    expect(changedPixels).toBeGreaterThan(width * height * 0.3);
+    expect(changedPixels).toBeLessThan(width * height * 0.5);
   });
 
   it('alternates complementary glyph halves across two PNG frames', async () => {
@@ -201,7 +201,7 @@ describe('bio dot drawing picture frames', () => {
     for (const frame of geometry) {
       expect(frame.count).toBeGreaterThan(40);
       expect(frame.width).toBeGreaterThan(maskGeometry.width * 0.25);
-      expect(frame.width).toBeLessThan(maskGeometry.width * 0.82);
+      expect(frame.width).toBeLessThan(maskGeometry.width * 0.9);
       expect(frame.height).toBeGreaterThan(maskGeometry.height * 0.65);
     }
     const leftCenter = geometry[0]!.centerX;
