@@ -9,14 +9,14 @@
     "./qr": "./src/qr/index.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-apigatewaymanagementapi": "^3.859.0",
-    "@aws-sdk/client-secrets-manager": "^3.859.0",
-    "@aws-sdk/lib-dynamodb": "^3.859.0",
+    "@aws-sdk/client-apigatewaymanagementapi": "^3.1123.0",
+    "@aws-sdk/client-secrets-manager": "^3.1123.0",
+    "@aws-sdk/lib-dynamodb": "^3.1123.0",
     "@argus-challenge/contracts": "0.1.0",
     "@argus-challenge/core": "0.1.0",
-    "@simplewebauthn/server": "^13.2.2",
+    "@simplewebauthn/server": "^13.3.3",
     "qrcode": "^1.5.4",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   },
   "devDependencies": {
     "@argus-challenge/testkit": "0.1.0"
