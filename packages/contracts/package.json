@@ -14,7 +14,7 @@
     "./verdicts/fixed-envelope": "./src/verdicts/fixed-envelope.ts"
   },
   "dependencies": {
-    "zod": "^4.0.17"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@argus-challenge/testkit": "0.1.0"
